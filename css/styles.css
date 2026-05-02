@@ -1,0 +1,137 @@
+/* Modern Styles for Friends France Trip Website */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  color: #333;
+  background: #f8f9fa;
+}
+
+/* Navigation */
+.navbar {
+  background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+  color: white;
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+.nav-brand { font-size: 1.5rem; font-weight: bold; }
+.nav-links { list-style: none; display: flex; gap: 2rem; }
+.nav-links a { color: white; text-decoration: none; font-weight: 500; transition: opacity 0.3s; }
+.nav-links a:hover { opacity: 0.8; }
+
+/* Hero Section */
+.hero {
+  background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('/images/hero-bg.jpg') center/cover;
+  color: white;
+  text-align: center;
+  padding: 4rem 1rem;
+  margin-bottom: 2rem;
+}
+.hero h1 { font-size: 3rem; margin-bottom: 1rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+.tagline { font-size: 1.2rem; opacity: 0.9; }
+
+/* Main Container */
+.container { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
+
+/* Sections */
+.section {
+  background: white;
+  border-radius: 10px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+.section h2 { color: #1a237e; margin-bottom: 1.5rem; border-bottom: 2px solid #e8eaf6; padding-bottom: 0.5rem; }
+
+/* Gallery */
+#gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+.photo-card {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+  transition: transform 0.3s;
+}
+.photo-card:hover { transform: translateY(-5px); }
+.photo-card img { width: 100%; height: 200px; object-fit: cover; display: block; }
+.caption { padding: 0.8rem; background: #f5f5f5; font-size: 0.9rem; text-align: center; }
+
+/* Message Board */
+.controls { display: flex; gap: 1rem; margin-bottom: 1rem; }
+#search-input, #filter-messages {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  flex: 1;
+}
+#message-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+#message-input {
+  padding: 1rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 100px;
+}
+#message-form button {
+  align-self: flex-end;
+  background: #1a237e;
+  color: white;
+  border: none;
+  padding: 0.8rem 2rem;
+  border-radius: 25px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.3s;
+}
+#message-form button:hover { background: #283593; }
+#message-list { list-style: none; }
+#message-list li {
+  background: #f8f9fa;
+  border-left: 4px solid #1a237e;
+  padding: 1rem;
+  margin-bottom: 0.8rem;
+  border-radius: 0 8px 8px 0;
+}
+.msg-text { display: block; margin: 0.5rem 0; }
+.date { font-size: 0.8rem; color: #666; }
+
+/* Calendar */
+.calendar-embed {
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+.calendar-embed iframe { width: 100%; border: none; }
+
+/* Footer */
+footer {
+  text-align: center;
+  padding: 2rem;
+  background: #1a237e;
+  color: white;
+  margin-top: 3rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .nav-links { display: none; }
+  .hero h1 { font-size: 2rem; }
+  #gallery { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .controls { flex-direction: column; }
+}

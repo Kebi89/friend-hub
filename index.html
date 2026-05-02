@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Friends France Trip 2024</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">🇫🇷 Friends Trip</div>
+        <ul class="nav-links">
+            <li><a href="#gallery-section">Gallery</a></li>
+            <li><a href="#message-board-section">Messages</a></li>
+            <li><a href="#calendar-section">Calendar</a></li>
+        </ul>
+    </nav>
+
+    <header class="hero">
+        <div class="hero-content">
+            <h1>Friends France Trip 2024</h1>
+            <p class="tagline">Our Annual Adventure in the City of Light</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <section id="gallery-section" class="section">
+            <h2>📸 Photo Gallery</h2>
+            <div id="gallery"></div>
+        </section>
+
+        <section id="message-board-section" class="section">
+            <h2>💬 Message Board</h2>
+            <div class="controls">
+                <input type="text" id="search-input" placeholder="Search messages...">
+                <select id="filter-messages">
+                    <option value="all">All Messages</option>
+                    <option value="recent">Recent First</option>
+                </select>
+            </div>
+            <form id="message-form">
+                <textarea id="message-input" rows="3" placeholder="Share your memories..." required></textarea>
+                <button type="submit">Post Message</button>
+            </form>
+            <ul id="message-list"></ul>
+        </section>
+
+        <section id="calendar-section" class="section">
+            <h2>📅 Trip Calendar</h2>
+            <div class="calendar-embed">
+                <iframe src="https://calendar.google.com/calendar/embed?src=your_calendar_id" 
+                        style="border: 0" width="800" height="600" frameborder="0" scrolling="no"></iframe>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>© 2024 Friends France Trip • Made with ❤️</p>
+    </footer>
+
+    <script src="/js/script.js"></script>
+    <script src="/js/lightbox.js"></script>
+</body>
+</html>
