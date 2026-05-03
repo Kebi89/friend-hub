@@ -109,7 +109,7 @@ export default function MessagesPage() {
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-800 mb-4">💬 Message Board</h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Share your favorite memories, thoughts, and messages with your friends!
+            Share memories, thoughts, and messages with all of us in our group!
           </p>
         </div>
 

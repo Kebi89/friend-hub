@@ -53,13 +53,13 @@ export function registerUser(email: string, password: string, displayName: strin
     users.push(newUser)
     saveUsers(users)
 
-    // Auto-login after registration
+    // Auto-login after registration and redirect to profile
     const session = createSession(email)
     if (session) {
       localStorage.setItem(STORAGE_KEYS.CURRENT_SESSION, JSON.stringify(session))
     }
 
-    return true
+    return 'profile'
   } catch (error) {
     console.error('Registration failed:', error)
     return false

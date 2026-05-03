@@ -37,8 +37,8 @@ export default function AuthPage() {
       }
 
       const success = registerUser(email, password, displayName)
-      if (success) {
-        router.push('/')
+      if (success === 'profile') {
+        router.push('/profile')
       } else {
         setError('Registration failed. Email may already be in use.')
       }

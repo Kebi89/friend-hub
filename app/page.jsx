@@ -54,7 +54,7 @@ export default function Home() {
               Friends Hub
             </h1>
             <p className="text-2xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-              A shared space for all our adventures and memories. 
+              A shared space for all **your** adventures and memories. 
               Create your account to get started.
             </p>
           </div>
