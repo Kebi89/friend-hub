@@ -42,8 +42,8 @@ export default function Navbar({ isAuthenticated = null, user = null }) {
   const navLinks = [
     { href: '/', label: 'Home' },
     { href: '/messages', label: 'Messages', requireAuth: true },
-    // { href: '/gallery', label: 'Gallery', requireAuth: true },
-    // { href: '/calendar', label: 'Calendar', requireAuth: true },
+    { href: '/gallery', label: 'Gallery', requireAuth: true },
+    { href: '/calendar', label: 'Calendar', requireAuth: true },
   ]
 
   return (
@@ -69,11 +69,11 @@ export default function Navbar({ isAuthenticated = null, user = null }) {
                     <Link href={href}>{label}</Link>
                   </Button>
                 ))}
-                
+
                 <Button variant="ghost" asChild>
                   <Link href="/profile">Profile</Link>
                 </Button>
-                
+
                 <Button onClick={handleLogout} variant="ghost" className="text-red-600 hover:bg-red-50">
                   Log Out
                 </Button>
@@ -101,10 +101,21 @@ export default function Navbar({ isAuthenticated = null, user = null }) {
         {isMenuOpen && (
           <div className="md:hidden py-4 border-t">
             <div className="flex flex-col gap-2">
+              {/* Always show Home link */}
+              <Button
+                variant="ghost"
+                asChild
+                className="w-full justify-start"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <Link href="/">Home</Link>
+              </Button>
+
+              {/* Auth/Login Link for non-logged users */}
               {!authState.isLogged ? (
-                <Button 
-                  variant="ghost" 
-                  asChild 
+                <Button
+                  variant="ghost"
+                  asChild
                   className="w-full justify-start"
                   onClick={() => setIsMenuOpen(false)}
                 >
@@ -112,6 +123,7 @@ export default function Navbar({ isAuthenticated = null, user = null }) {
                 </Button>
               ) : (
                 <>
+                  {/* All authenticated links */}
                   {navLinks.filter(link => link.requireAuth).map(({ href, label }) => (
                     <Button
                       key={href}
