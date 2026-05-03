@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import Navbar from '@/components/Navbar'
 import { isUserLoggedIn, getCurrentUser } from '@/lib/auth'
 
 export default function Home() {
@@ -67,6 +68,7 @@ export default function Home() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+        <Navbar />
         <div className="container mx-auto px-4 py-16">
           <div className="max-w-4xl mx-auto text-center">
             {/* Logo */}
@@ -160,6 +162,7 @@ export default function Home() {
   // DASHBOARD PAGE (User IS logged in)
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      <Navbar />
       <div className="container mx-auto px-4 py-8">
         {/* Welcome Header */}
         <div className="mb-8">
