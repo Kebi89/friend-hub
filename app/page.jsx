@@ -62,7 +62,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-8">
         <div className="container mx-auto px-4 text-center">
-          <p className="mb-2">© 2024 Friends Hub • Made with ❤️</p>
+          <p className="mb-2">© Friends Hub • Made with ❤️</p>
           <p className="text-sm text-gray-400">Built with Next.js + Tailwind CSS + Shadcn UI</p>
         </div>
       </footer>
