@@ -40,7 +40,7 @@ export default function Navbar({ isAuthenticated = null, user = null }) {
 
   // Desktop nav links (always visible)
   const navLinks = [
-    { href: '/', label: 'Home' },
+    { href: '/', label: 'Home', requireAuth: false },
     { href: '/messages', label: 'Messages', requireAuth: true },
     { href: '/gallery', label: 'Gallery', requireAuth: true },
     { href: '/calendar', label: 'Calendar', requireAuth: true },
@@ -64,6 +64,12 @@ export default function Navbar({ isAuthenticated = null, user = null }) {
               </Button>
             ) : (
               <>
+                {/* Always show Home link */}
+                <Button variant="ghost" asChild>
+                  <Link href="/">Home</Link>
+                </Button>
+
+                {/* Auth-only links */}
                 {navLinks.filter(link => link.requireAuth).map(({ href, label }) => (
                   <Button key={href} variant="ghost" asChild>
                     <Link href={href}>{label}</Link>
