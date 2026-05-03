@@ -1,14 +1,24 @@
-# Friends France Trip 2024
+# Friends Hub
 
-A modern web experience for friends sharing their annual trip memories.
+A modern web experience for friends to share adventures and memories together.
 
 ## Features
 
 📸 **Photo Gallery** - Beautiful grid layout for trip memories  
-💬 **Message Board** - Interactive discussion with localStorage persistence  
+💬 **Message Board** - Interactive discussion with persistence  
 📅 **Trip Calendar** - Google Calendar integration for scheduling  
 🎨 **Modern UI** - Built with Next.js + Tailwind CSS + Shadcn Components  
 📱 **Responsive** - Works perfectly on mobile and desktop  
+
+## Overview
+
+**Friends Hub** is a customizable platform where groups of friends can create their own shared spaces for:
+- Sharing photos from trips and events
+- Leaving messages and memories
+- Planning future adventures together
+- Creating lasting digital memories
+
+The platform can be easily customized for any group, event, or type of adventure!  
 
 ## Tech Stack
 

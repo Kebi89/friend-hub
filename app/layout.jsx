@@ -1,11 +1,11 @@
 import { Inter } from 'next/font/google'
-import './styles/globals.css'
+import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
-  title: 'Friends France Trip 2024',
-  description: 'Our Annual Adventure in the City of Light',
+  title: 'Friends Hub - Shared Adventure Space',
+  description: 'A shared space for all your adventures and memories with friends!',
 }
 
 export default function RootLayout({ children }) {
