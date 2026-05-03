@@ -12,15 +12,20 @@ export default function Home() {
   const router = useRouter()
 
   useEffect(() => {
-    // Check if user is already logged in
+    // Check if user is already logged in AND not navigating from auth page
+    const urlParams = new URLSearchParams(window.location.search)
+    const fromAuth = urlParams.get('from') === 'auth'
+    
     const logged = isUserLoggedIn()
-    setIsAuthenticated(logged)
-
-    if (logged) {
-      // Redirect authenticated users to messages or home
-      setTimeout(() => {
-        router.push('/messages')
-      }, 500)
+    if (logged && !fromAuth) {
+      // Redirect authenticated users to messages ONLY if they came from auth
+      // If they're on the home page from navigation, show the dashboard
+      const path = window.location.pathname
+      if (path === '/auth' || path === '/auth?mode=signup') {
+        setTimeout(() => {
+          router.push('/messages')
+        }, 500)
+      }
     }
 
     setIsLoaded(true)
@@ -85,7 +90,7 @@ export default function Home() {
 
           {/* Login Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
-            <Link href="/auth?mode=signup">
+            <Link href="/auth?mode=signin">
               <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg rounded-full">
                 Sign In
               </Button>

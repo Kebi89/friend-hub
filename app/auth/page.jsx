@@ -15,11 +15,14 @@ export default function AuthPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  // Check URL params for signup mode
+  // Check URL params for signup or signin mode
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
-    if (urlParams.get('mode') === 'signup') {
+    const mode = urlParams.get('mode')
+    if (mode === 'signup') {
       setIsLogin(false)
+    } else if (mode === 'signin') {
+      setIsLogin(true)
     }
   }, [])
 
