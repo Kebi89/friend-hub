@@ -1,24 +1,35 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
+import { isUserLoggedIn } from '@/lib/auth'
 
 export default function MessagesPage() {
   const [messages, setMessages] = useState([])
   const [username, setUsername] = useState('')
   const [newMessage, setNewMessage] = useState('')
   const [isLoaded, setIsLoaded] = useState(false)
+  const [checkingAuth, setCheckingAuth] = useState(true)
+  const router = useRouter()
 
-  // Load messages from localStorage on mount
+  // Check authentication
   useEffect(() => {
+    const isLogged = isUserLoggedIn()
+    if (!isLogged) {
+      setCheckingAuth(false)
+      router.push('/auth')
+      return
+    }
+    setIsLoaded(true)
+    setCheckingAuth(false)
+  }, [router])
+
+  useEffect(() => {
+    // Load messages from localStorage on mount
     const storedMessages = localStorage.getItem('hubMessages')
     if (storedMessages) {
       setMessages(JSON.parse(storedMessages))
-    }
-    // Load last username used
-    const lastUsername = localStorage.getItem('hubUsername')
-    if (lastUsername) {
-      setUsername(lastUsername)
     }
     setIsLoaded(true)
   }, [])
@@ -44,9 +55,6 @@ export default function MessagesPage() {
       text: newMessage.trim(),
       timestamp: new Date().toISOString(),
     }
-
-    // Save username for next time
-    localStorage.setItem('hubUsername', message.user)
 
     // Add new message to the top
     setMessages([message, ...messages])
@@ -211,6 +219,21 @@ export default function MessagesPage() {
             )}
           </div>
 
+          {/* User Info */}
+          <div className="bg-blue-50 rounded-lg p-4 mb-6">
+            <h3 className="font-semibold text-blue-900 mb-3">Current User</h3>
+            <div className="space-y-2 text-sm text-blue-800">
+              <div className="flex justify-between">
+                <span>Name:</span>
+                <span className="font-semibold">{username.trim() || 'Not set (set in profile)'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Status:</span>
+                <span className="font-semibold text-green-600">✓ Logged in</span>
+              </div>
+            </div>
+          </div>
+
           {/* Tips */}
           <div className="mt-8 bg-blue-50 border-l-4 border-blue-600 p-4 rounded-r-lg">
             <h3 className="font-semibold text-blue-900 mb-2">💡 Tips:</h3>
@@ -218,7 +241,7 @@ export default function MessagesPage() {
               <li>• Your name will be saved for your next message</li>
               <li>• Messages persist in your browser (LocalStorage)</li>
               <li>• Feel free to share memories, jokes, or thoughts</li>
-              <li>• Messages are stored locally - no account needed!</li>
+              <li>• All data stored locally - never leaves your device!</li>
             </ul>
           </div>
         </div>

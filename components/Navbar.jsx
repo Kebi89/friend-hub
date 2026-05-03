@@ -1,17 +1,49 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { isUserLoggedIn, getCurrentUser, logoutUser } from '@/lib/auth'
 
-export default function Navbar() {
+export default function Navbar({ isAuthenticated = null, user = null }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [authState, setAuthState] = useState({
+    isLogged: isAuthenticated !== null ? isAuthenticated : false,
+    user: user || null,
+  })
+  const router = useRouter()
 
+  // Use provided auth state or check locally
+  useEffect(() => {
+    if (isAuthenticated !== null || user) return
+
+    const checkAuth = () => {
+      const logged = isUserLoggedIn()
+      const currentUser = logged ? getCurrentUser() : null
+      setAuthState({ isLogged: logged, user: currentUser })
+    }
+
+    checkAuth()
+    const interval = setInterval(checkAuth, 5000) // Check every 5 seconds
+
+    return () => clearInterval(interval)
+  }, [isAuthenticated, user])
+
+  const handleLogout = () => {
+    if (window.confirm('Are you sure you want to log out?')) {
+      logoutUser()
+      setAuthState({ isLogged: false, user: null })
+      router.push('/auth')
+    }
+  }
+
+  // Desktop nav links (always visible)
   const navLinks = [
     { href: '/', label: 'Home' },
-    { href: '/gallery', label: 'Gallery' },
-    { href: '/messages', label: 'Messages' },
-    { href: '/calendar', label: 'Calendar' },
+    { href: '/messages', label: 'Messages', requireAuth: true },
+    // { href: '/gallery', label: 'Gallery', requireAuth: true },
+    // { href: '/calendar', label: 'Calendar', requireAuth: true },
   ]
 
   return (
@@ -24,12 +56,29 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Menu */}
-          <div className="hidden md:flex gap-2">
-            {navLinks.map(({ href, label }) => (
-              <Button key={href} variant="ghost" asChild>
-                <Link href={href}>{label}</Link>
+          <div className="hidden md:flex items-center gap-2">
+            {/* Auth Links */}
+            {!authState.isLogged ? (
+              <Button variant="ghost" asChild>
+                <Link href="/auth">Sign In</Link>
               </Button>
-            ))}
+            ) : (
+              <>
+                {navLinks.filter(link => link.requireAuth).map(({ href, label }) => (
+                  <Button key={href} variant="ghost" asChild>
+                    <Link href={href}>{label}</Link>
+                  </Button>
+                ))}
+                
+                <Button variant="ghost" asChild>
+                  <Link href="/profile">Profile</Link>
+                </Button>
+                
+                <Button onClick={handleLogout} variant="ghost" className="text-red-600 hover:bg-red-50">
+                  Log Out
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -38,26 +87,11 @@ export default function Navbar() {
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Toggle menu"
           >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               {isMenuOpen ? (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               ) : (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               )}
             </svg>
           </button>
@@ -67,17 +101,48 @@ export default function Navbar() {
         {isMenuOpen && (
           <div className="md:hidden py-4 border-t">
             <div className="flex flex-col gap-2">
-              {navLinks.map(({ href, label }) => (
-                <Button
-                  key={href}
-                  variant="ghost"
-                  asChild
+              {!authState.isLogged ? (
+                <Button 
+                  variant="ghost" 
+                  asChild 
                   className="w-full justify-start"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <Link href={href}>{label}</Link>
+                  <Link href="/auth">Sign In</Link>
                 </Button>
-              ))}
+              ) : (
+                <>
+                  {navLinks.filter(link => link.requireAuth).map(({ href, label }) => (
+                    <Button
+                      key={href}
+                      variant="ghost"
+                      asChild
+                      className="w-full justify-start"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <Link href={href}>{label}</Link>
+                    </Button>
+                  ))}
+                  <Button
+                    variant="ghost"
+                    asChild
+                    className="w-full justify-start"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <Link href="/profile">Profile</Link>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start text-red-600 hover:bg-red-50"
+                    onClick={() => {
+                      handleLogout()
+                      setIsMenuOpen(false)
+                    }}
+                  >
+                    Log Out
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         )}
