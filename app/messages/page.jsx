@@ -3,72 +3,97 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
-import { isUserLoggedIn } from '@/lib/auth'
+import { supabase } from '@/lib/supabase'
+import { isUserLoggedIn, getAllMessages, saveMessage, deleteMessage, getCurrentUserId, signOut as supabaseSignOut } from '@/lib/auth'
 
 export default function MessagesPage() {
   const [messages, setMessages] = useState([])
-  const [username, setUsername] = useState('')
   const [newMessage, setNewMessage] = useState('')
   const [isLoaded, setIsLoaded] = useState(false)
+  const [username, setUsername] = useState(null)
   const [checkingAuth, setCheckingAuth] = useState(true)
   const router = useRouter()
+  const [userId, setUserId] = useState(null)
 
   // Check authentication
   useEffect(() => {
-    const isLogged = isUserLoggedIn()
-    if (!isLogged) {
+    const checkAuth = async () => {
+      const isLogged = localStorage.getItem('authenticatedUser') === 'true'
+      if (!isLogged) {
+        setCheckingAuth(false)
+        router.push('/auth')
+        return
+      }
+
+      const currentUserId = await getCurrentUserId()
+      setUserId(currentUserId)
+
+      const userProfile = await getUserProfile(currentUserId)
+      if (userProfile) {
+        setUsername(userProfile.display_name || userProfile.nickname || 'Anonymous')
+      }
+
       setCheckingAuth(false)
-      router.push('/auth')
-      return
+      setIsLoaded(true)
     }
-    setIsLoaded(true)
-    setCheckingAuth(false)
+
+    checkAuth()
   }, [router])
 
+  // Load messages from Supabase
   useEffect(() => {
-    // Load messages from localStorage on mount
-    const storedMessages = localStorage.getItem('hubMessages')
-    if (storedMessages) {
-      setMessages(JSON.parse(storedMessages))
-    }
-    setIsLoaded(true)
-  }, [])
+    if (!isLoaded || !userId) return
 
-  // Save messages to localStorage whenever they change
-  useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem('hubMessages', JSON.stringify(messages))
-    }
-  }, [messages, isLoaded])
+    loadMessages()
+    
+    // Set up real-time subscription for messages
+    const messagesChannel = supabase
+      .channel('messages')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'messages' 
+      }, loadMessages)
+      .subscribe()
 
-  const handleSubmit = (e) => {
+    return () => {
+      supabase.removeChannel(messagesChannel)
+    }
+  }, [isLoaded, userId])
+
+  const loadMessages = async () => {
+    const msgs = await getAllMessages()
+    setMessages(msgs)
+  }
+
+  const handleSubmit = async (e) => {
     e.preventDefault()
     
-    if (!newMessage.trim()) {
+    if (!newMessage.trim() || !userId) {
       alert('Please enter a message!')
       return
     }
 
-    const message = {
-      id: Date.now(),
-      user: username.trim() || 'Anonymous',
-      text: newMessage.trim(),
-      timestamp: new Date().toISOString(),
+    const result = await saveMessage(userId, newMessage.trim())
+    
+    if (result) {
+      setNewMessage('')
+      // Reload messages
+      const msgs = await getAllMessages()
+      setMessages(msgs)
+    } else {
+      alert('Failed to post message')
     }
-
-    // Add new message to the top
-    setMessages([message, ...messages])
-
-    // Clear the input
-    setNewMessage('')
-
-    // Scroll to top
-    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm('Delete this message?')) {
-      setMessages(messages.filter((msg) => msg.id !== id))
+      const success = await deleteMessage(id)
+      if (success) {
+        // Reload messages
+        const msgs = await getAllMessages()
+        setMessages(msgs)
+      }
     }
   }
 
@@ -87,13 +112,25 @@ export default function MessagesPage() {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
-  if (!isLoaded) {
+  // Get user profile
+  async function getUserProfile(uId) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', uId)
+      .single()
+
+    if (error) return null
+    return data
+  }
+
+  if (checkingAuth) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
         <Navbar />
         <main className="container mx-auto px-4 py-8">
           <div className="text-center py-20">
-            <div className="animate-pulse text-lg text-gray-500">Loading messages...</div>
+            <div className="animate-pulse text-lg text-gray-500">Loading...</div>
           </div>
         </main>
       </div>
@@ -109,7 +146,7 @@ export default function MessagesPage() {
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-800 mb-4">💬 Message Board</h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Share memories, thoughts, and messages with all of us in our group!
+            Share your memories with your friends!
           </p>
         </div>
 
@@ -118,20 +155,6 @@ export default function MessagesPage() {
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <h2 className="text-xl font-semibold mb-4 text-gray-800">Post a Message</h2>
             <form onSubmit={handleSubmit}>
-              <div className="mb-4">
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-                  Your Name
-                </label>
-                <input
-                  type="text"
-                  id="username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Enter your name (optional)"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                />
-              </div>
-              
               <div className="mb-4">
                 <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
                   Your Message
@@ -144,12 +167,14 @@ export default function MessagesPage() {
                   rows="4"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-y"
                   required
+                  disabled={!userId}
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg"
+                disabled={!userId || !newMessage.trim()}
+                className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Post Message
               </button>
@@ -166,8 +191,8 @@ export default function MessagesPage() {
                 <button
                   onClick={() => {
                     if (window.confirm('Clear all messages?')) {
+                      // Note: In production, you'd need admin permissions for this
                       setMessages([])
-                      localStorage.removeItem('hubMessages')
                     }
                   }}
                   className="text-sm text-red-600 hover:text-red-700 font-medium"
@@ -225,11 +250,15 @@ export default function MessagesPage() {
             <div className="space-y-2 text-sm text-blue-800">
               <div className="flex justify-between">
                 <span>Name:</span>
-                <span className="font-semibold">{username.trim() || 'Not set (set in profile)'}</span>
+                <span className="font-semibold">{username || 'Not set (check profile)'}</span>
               </div>
               <div className="flex justify-between">
                 <span>Status:</span>
                 <span className="font-semibold text-green-600">✓ Logged in</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Storage:</span>
+                <span className="font-semibold text-blue-600">Supabase Cloud Database</span>
               </div>
             </div>
           </div>
@@ -238,10 +267,10 @@ export default function MessagesPage() {
           <div className="mt-8 bg-blue-50 border-l-4 border-blue-600 p-4 rounded-r-lg">
             <h3 className="font-semibold text-blue-900 mb-2">💡 Tips:</h3>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Your name will be saved for your next message</li>
-              <li>• Messages persist in your browser (LocalStorage)</li>
-              <li>• Feel free to share memories, jokes, or thoughts</li>
-              <li>• All data stored locally - never leaves your device!</li>
+              <li>• Messages are stored in Supabase cloud database</li>
+              <li>• All messages are shared with your friends</li>
+              <li>• Real-time sync across all devices</li>
+              <li>• Your username is automatically added to all messages</li>
             </ul>
           </div>
         </div>

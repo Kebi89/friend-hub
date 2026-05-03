@@ -3,18 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
-import { getCurrentUser, isUserLoggedIn, updateUser, logoutUser } from '@/lib/auth'
+import { getCurrentUser, isUserLoggedIn, updateUserProfile, signOut as supabaseSignOut, getUserProfile } from '@/lib/auth'
 
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [user, setUser] = useState(null)
-  const [formData, setFormData] = useState({
-    displayName: '',
-    nickname: '',
-    birthdate: '',
-    bankAccount: '',
-  })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const router = useRouter()
@@ -25,14 +19,20 @@ export default function ProfilePage() {
       return
     }
 
-    const currentUser = getCurrentUser()
-    if (currentUser) {
-      setUser(currentUser)
+    const currentUserId = await getCurrentUserId()
+    if (!currentUserId) {
+      setLoading(false)
+      return
+    }
+
+    const userProfile = await getUserProfile(currentUserId)
+    if (userProfile) {
+      setUser(userProfile)
       setFormData({
-        displayName: currentUser.displayName,
-        nickname: currentUser.nickname || '',
-        birthdate: currentUser.birthdate || '',
-        bankAccount: currentUser.bankAccount || '',
+        displayName: userProfile.display_name || '',
+        nickname: userProfile.nickname || '',
+        birthdate: userProfile.birthdate || '',
+        bankAccount: userProfile.bank_account || '',
       })
     }
     setLoading(false)
@@ -44,7 +44,7 @@ export default function ProfilePage() {
     setSuccess('')
     setSaving(true)
 
-    const success = updateUser(user.email, formData)
+    const profile = await updateUserProfile(userId, formData)
     
     if (success) {
       setSuccess('Profile updated successfully!')
@@ -57,9 +57,10 @@ export default function ProfilePage() {
     setSaving(false)
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (window.confirm('Are you sure you want to log out?')) {
-      logoutUser()
+      await supabaseSignOut()
+      localStorage.removeItem('authenticatedUser')
       router.push('/auth')
     }
   }

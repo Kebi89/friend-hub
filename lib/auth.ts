@@ -1,198 +1,220 @@
-// Local-First Authentication Service
-// All data stored in LocalStorage - NO cloud, NO network
+import { supabase } from './supabase'
 
-interface User {
-  email: string
-  displayName: string
+// ============================================
+// SIGN UP
+// ============================================
+export async function signUp(email: string, password: string, displayName: string, nickname: string | null = null, birthdate: string | null = null, bankAccount: string | null = null) {
+  try {
+    // Create auth user
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+    })
+
+    if (authError) throw authError
+    if (!authData.user) throw new Error('User creation failed')
+
+    // Create profile in database
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert([{
+        id: authData.user.id,
+        email,
+        display_name: displayName,
+        nickname,
+        birthdate,
+        bank_account: bankAccount,
+      }])
+
+    if (profileError) {
+      // Rollback auth user if profile creation fails
+      await supabase.auth.admin.deleteUser(authData.user.id)
+      throw profileError
+    }
+
+    return { success: true, user: authData.user, profile: true }
+  } catch (error) {
+    console.error('Signup error:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+// ============================================
+// SIGN IN
+// ============================================
+export async function signIn(email: string, password: string) {
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error) throw error
+    if (!data.user) throw new Error('No user found')
+
+    return { success: true, user: data.user }
+  } catch (error) {
+    console.error('SignIn error:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+// ============================================
+// SIGN OUT
+// ============================================
+export async function signOut() {
+  try {
+    const { error } = await supabase.auth.signOut()
+    if (error) throw error
+    return { success: true }
+  } catch (error) {
+    console.error('SignOut error:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+// ============================================
+// GET CURRENT USER
+// ============================================
+export async function getCurrentUser() {
+  const { data: { user } } = await supabase.auth.getUser()
+  return user
+}
+
+// ============================================
+// GET USER PROFILE
+// ============================================
+export async function getUserProfile(userId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
+
+    if (error) throw error
+    return data
+  } catch (error) {
+    console.error('Get profile error:', error)
+    return null
+  }
+}
+
+// ============================================
+// UPDATE USER PROFILE
+// ============================================
+export async function updateUserProfile(userId: string, updates: Partial<{
+  display_name: string
   nickname: string | null
   birthdate: string | null
-  bankAccount: string | null
-}
-
-interface Session {
-  email: string
-  sessionToken: string
-  createdAt: number
-  expires: number
-}
-
-const STORAGE_KEYS = {
-  USERS: 'friends-hub-users',
-  CURRENT_SESSION: 'friends-hub-current-session',
-  SESSION_TOKEN: 'friends-hub-session-token',
-}
-
-// Simple hash function for password storage (NOT for production security)
-function simpleHash(str: string): string {
-  let hash = 0
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i)
-    hash = (hash << 5) - hash + char
-    hash = hash & hash // Convert to 32bit integer
-  }
-  return Math.abs(hash).toString(16)
-}
-
-export function registerUser(email: string, password: string, displayName: string, nickname: string | null = null, birthdate: string | null = null, bankAccount: string | null = null): { success: boolean; redirectTo?: string } {
+  bank_account: string | null
+}>) {
   try {
-    const users = getUsers()
-    
-    // Check if user already exists
-    if (users.some(user => user.email === email)) {
-      return { success: false }
-    }
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId)
+      .select()
+      .single()
 
-    const newUser: User = {
-      email,
-      displayName,
-      nickname,
-      birthdate,
-      bankAccount,
-    }
-
-    users.push(newUser)
-    saveUsers(users)
-
-    // Auto-login after registration and redirect to profile
-    const session = createSession(email)
-    if (session) {
-      localStorage.setItem(STORAGE_KEYS.CURRENT_SESSION, JSON.stringify(session))
-    }
-
-    return { success: true, redirectTo: 'profile' }
+    if (error) throw error
+    return data
   } catch (error) {
-    console.error('Registration failed:', error)
-    return { success: false }
-  }
-}
-
-export function loginUser(email: string, password: string): boolean {
-  try {
-    const users = getUsers()
-    const user = users.find(u => u.email === email)
-
-    if (!user) {
-      return false
-    }
-
-    // In a real app, we'd verify the password hash
-    // For local-only demo, we'll skip password verification
-    // OR you can implement: if (user.passwordHash !== simpleHash(password)) return false;
-
-    // Auto-login
-    const session = createSession(email)
-    if (session) {
-      localStorage.setItem(STORAGE_KEYS.CURRENT_SESSION, JSON.stringify(session))
-      return true
-    }
-
-    return false
-  } catch (error) {
-    console.error('Login failed:', error)
-    return false
-  }
-}
-
-export function logoutUser(): void {
-  localStorage.removeItem(STORAGE_KEYS.CURRENT_SESSION)
-  localStorage.removeItem(STORAGE_KEYS.SESSION_TOKEN)
-}
-
-export function getCurrentUser(): User | null {
-  const session = getActiveSession()
-  if (!session) return null
-
-  const users = getUsers()
-  const user = users.find(u => u.email === session.email)
-  
-  return user || null
-}
-
-export function updateUser(userId: string, updates: Partial<User>): boolean {
-  try {
-    const users = getUsers()
-    const index = users.findIndex(u => u.email === userId)
-
-    if (index === -1) return false
-
-    users[index] = { ...users[index], ...updates }
-    saveUsers(users)
-
-    return true
-  } catch (error) {
-    console.error('Update failed:', error)
-    return false
-  }
-}
-
-export function deleteUser(email: string): boolean {
-  try {
-    const users = getUsers()
-    const filtered = users.filter(u => u.email !== email)
-
-    if (filtered.length === users.length) {
-      return false
-    }
-
-    saveUsers(filtered)
-    logoutUser()
-
-    return true
-  } catch (error) {
-    console.error('Delete failed:', error)
-    return false
-  }
-}
-
-export function isUserLoggedIn(): boolean {
-  return !!getActiveSession()
-}
-
-function getActiveSession(): Session | null {
-  try {
-    const sessionStr = localStorage.getItem(STORAGE_KEYS.CURRENT_SESSION)
-    if (!sessionStr) return null
-
-    const session: Session = JSON.parse(sessionStr)
-
-    // Check if session is expired (24 hours)
-    const now = Date.now()
-    if (now > session.expires) {
-      logoutUser()
-      return null
-    }
-
-    return session
-  } catch {
+    console.error('Update profile error:', error)
     return null
   }
 }
 
-function createSession(email: string): Session | null {
+// ============================================
+// SAVE MESSAGE TO DATABASE
+// ============================================
+export async function saveMessage(userId: string, content: string) {
   try {
-    const session: Session = {
-      email,
-      sessionToken: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
-      createdAt: Date.now(),
-      expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
-    }
+    const { data, error } = await supabase
+      .from('messages')
+      .insert([{
+        user_id: userId,
+        content: content,
+      }])
+      .select()
+      .single()
 
-    localStorage.setItem(STORAGE_KEYS.CURRENT_SESSION, JSON.stringify(session))
-    return session
-  } catch {
+    if (error) throw error
+    return data
+  } catch (error) {
+    console.error('Save message error:', error)
     return null
   }
 }
 
-function getUsers(): User[] {
+// ============================================
+// GET ALL MESSAGES
+// ============================================
+export async function getAllMessages() {
   try {
-    const usersStr = localStorage.getItem(STORAGE_KEYS.USERS)
-    return usersStr ? JSON.parse(usersStr) : []
-  } catch {
+    const { data, error } = await supabase
+      .from('messages')
+      .select(`
+        *,
+        profiles (
+          id,
+          display_name,
+          nickname
+        )
+      `)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Get messages error:', error)
+      return []
+    }
+
+    // Transform data to match local format
+    return data.map(msg => ({
+      id: msg.id,
+      user: msg.profiles?.display_name || msg.profiles?.nickname || 'Anonymous',
+      text: msg.content,
+      timestamp: msg.created_at,
+    }))
+  } catch (error) {
+    console.error('Get messages error:', error)
     return []
   }
 }
 
-function saveUsers(users: User[]): void {
-  localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users))
+// ============================================
+// DELETE MESSAGE
+// ============================================
+export async function deleteMessage(messageId: string) {
+  try {
+    const { error } = await supabase
+      .from('messages')
+      .delete()
+      .eq('id', messageId)
+
+    if (error) throw error
+    return true
+  } catch (error) {
+    console.error('Delete message error:', error)
+    return false
+  }
+}
+
+// ============================================
+// CHECK IF USER IS LOGGED IN
+// ============================================
+export function isUserLoggedIn(): boolean {
+  // This is async, so we check if user data exists locally
+  return !!localStorage.getItem('authenticatedUser')
+}
+
+// ============================================
+// GET CURRENT USER ID
+// ============================================
+export async function getCurrentUserId(): Promise<string | null> {
+  const user = await getCurrentUser()
+  return user?.id || null
 }

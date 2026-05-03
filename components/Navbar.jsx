@@ -4,13 +4,14 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { isUserLoggedIn, getCurrentUser, logoutUser } from '@/lib/auth'
+import { isUserLoggedIn, getCurrentUser, logoutUser, signOut as supabaseSignOut, getCurrentUserId } from '@/lib/auth'
 
 export default function Navbar({ isAuthenticated = null, user = null }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [authState, setAuthState] = useState({
     isLogged: isAuthenticated !== null ? isAuthenticated : false,
     user: user || null,
+    userId: null,
   })
   const router = useRouter()
 
@@ -18,10 +19,16 @@ export default function Navbar({ isAuthenticated = null, user = null }) {
   useEffect(() => {
     if (isAuthenticated !== null || user) return
 
-    const checkAuth = () => {
-      const logged = isUserLoggedIn()
-      const currentUser = logged ? getCurrentUser() : null
-      setAuthState({ isLogged: logged, user: currentUser })
+    const checkAuth = async () => {
+      // Check if we have authenticated user in localStorage
+      const isLocalLogged = localStorage.getItem('authenticatedUser') === 'true'
+      
+      let currentUserId = null
+      if (isLocalLogged) {
+        currentUserId = await getCurrentUserId()
+      }
+      
+      setAuthState({ isLogged: isLocalLogged, user: null, userId: currentUserId })
     }
 
     checkAuth()
@@ -30,10 +37,11 @@ export default function Navbar({ isAuthenticated = null, user = null }) {
     return () => clearInterval(interval)
   }, [isAuthenticated, user])
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (window.confirm('Are you sure you want to log out?')) {
-      logoutUser()
-      setAuthState({ isLogged: false, user: null })
+      await supabaseSignOut()
+      localStorage.removeItem('authenticatedUser')
+      setAuthState({ isLogged: false, user: null, userId: null })
       router.push('/auth')
     }
   }

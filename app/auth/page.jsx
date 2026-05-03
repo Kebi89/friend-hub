@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
-import { loginUser, registerUser } from '@/lib/auth'
+import { signIn, signUp, signOut } from '@/lib/auth'
 
 export default function AuthPage() {
   const router = useRouter()
@@ -32,23 +32,33 @@ export default function AuthPage() {
     setLoading(true)
 
     if (isLogin) {
-      // Login
-      const success = loginUser(email, password)
-      if (success) {
+      // Sign in
+      const result = await signIn(email, password)
+      if (result.success && result.user) {
+        // Set authenticated user in localStorage
+        localStorage.setItem('authenticatedUser', 'true')
         router.push('/')
       } else {
         setError('Invalid email or password')
       }
     } else {
-      // Register
+      // Sign up
       if (!displayName.trim()) {
         setError('Please enter your display name')
         setLoading(false)
         return
       }
 
-      const result = registerUser(email, password, displayName)
-      if (result.success && result.redirectTo === 'profile') {
+      if (!password.trim() || password.length < 6) {
+        setError('Password must be at least 6 characters')
+        setLoading(false)
+        return
+      }
+
+      const result = await signUp(email, password, displayName, null, null, null)
+      if (result.success && result.user) {
+        // Set authenticated user in localStorage
+        localStorage.setItem('authenticatedUser', 'true')
         router.push('/profile')
       } else {
         setError('Registration failed. Email may already be in use.')
