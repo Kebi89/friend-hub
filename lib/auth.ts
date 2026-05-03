@@ -33,13 +33,13 @@ function simpleHash(str: string): string {
   return Math.abs(hash).toString(16)
 }
 
-export function registerUser(email: string, password: string, displayName: string, nickname: string | null = null, birthdate: string | null = null, bankAccount: string | null = null): boolean {
+export function registerUser(email: string, password: string, displayName: string, nickname: string | null = null, birthdate: string | null = null, bankAccount: string | null = null): { success: boolean; redirectTo?: string } {
   try {
     const users = getUsers()
     
     // Check if user already exists
     if (users.some(user => user.email === email)) {
-      return false
+      return { success: false }
     }
 
     const newUser: User = {
@@ -59,10 +59,10 @@ export function registerUser(email: string, password: string, displayName: strin
       localStorage.setItem(STORAGE_KEYS.CURRENT_SESSION, JSON.stringify(session))
     }
 
-    return 'profile'
+    return { success: true, redirectTo: 'profile' }
   } catch (error) {
     console.error('Registration failed:', error)
-    return false
+    return { success: false }
   }
 }
 
