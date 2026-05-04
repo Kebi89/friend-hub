@@ -111,3 +111,21 @@ WITH CHECK (bucket_id = 'photos');
 CREATE POLICY "Anyone can read photos" ON storage.objects FOR SELECT
 USING (bucket_id = 'photos');
 
+
+-- Add end_date column to events table if not exists
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'events' AND column_name = 'end_date'
+  ) THEN
+    ALTER TABLE events ADD COLUMN end_date DATE;
+  END IF;
+  
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'events' AND column_name = 'is_multi_day'
+  ) THEN
+    ALTER TABLE events ADD COLUMN is_multi_day BOOLEAN DEFAULT false;
+  END IF;
+END $$;
