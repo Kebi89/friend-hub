@@ -15,6 +15,7 @@ export default function Home() {
   const [messages, setMessages] = useState([])
   const [recentPhotos, setRecentPhotos] = useState([])
   const [upcomingEvents, setUpcomingEvents] = useState([])
+  const [friendsActivity, setFriendsActivity] = useState([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
@@ -59,18 +60,20 @@ export default function Home() {
           profiles (
             id,
             display_name,
-            nickname
+            nickname,
+            email
           )
         `)
         .order('created_at', { ascending: false })
-        .limit(3)
+        .limit(5)
 
       if (messagesData) {
         const formattedMessages = messagesData.map(msg => ({
           id: msg.id,
           user: msg.profiles?.display_name || msg.profiles?.nickname || 'Anonymous',
-          text: msg.content,
+          text: msg.content.split(' ').slice(0, 3).join(' ') + '...',
           timestamp: msg.created_at,
+          userEmail: msg.profiles?.email,
         }))
         setMessages(formattedMessages)
       }
@@ -135,6 +138,14 @@ export default function Home() {
           }
         })
         setUpcomingEvents(formattedEvents)
+      }
+
+      // Load friend activity (last 3 actions from all users)
+      const { data: activitiesData } = await supabase
+        .rpc('get_recent_activities', {})
+
+      if (activitiesData) {
+        setFriendsActivity(activitiesData.slice(0, 3))
       }
     } catch (error) {
       console.error('Error loading data:', error)
@@ -202,31 +213,8 @@ export default function Home() {
                 </Button>
               </Link>
             </div>
-
-            <div className="bg-blue-50 border-l-4 border-blue-600 rounded-lg p-6 max-w-2xl mx-auto mt-6">
-              <div className="flex items-center gap-3">
-                <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-                <div className="text-left">
-                  <h3 className="font-semibold text-blue-900">100% Private & Local</h3>
-                  <p className="text-sm text-blue-800">
-                    All your data stays on your device. No cloud, no third-party storage. 
-                    Works offline and never leaves your network.
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
-
-        <footer className="bg-gray-900 text-white py-8 mt-auto">
-          <div className="container mx-auto px-4 text-center">
-            <p className="text-sm text-gray-400">
-              © 2026 Friends Hub • Privacy-focused • Local-first • No cloud
-            </p>
-          </div>
-        </footer>
       </div>
     )
   }
@@ -236,168 +224,161 @@ export default function Home() {
       <Navbar />
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Welcome Back, {currentUser?.email?.split('@')[0]}! 👋</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back, {currentUser?.email?.split('@')[0]}! 👋</h1>
           <p className="text-gray-600">Here's what's happening in your Friends Hub</p>
         </div>
 
-        {/* Quick Access Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Link href="/messages" className="block">
-            <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
-              <div className="text-4xl mb-3">💬</div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-2">Messages</h3>
-              <p className="text-gray-600 text-sm">
-                {messages.length} {messages.length === 1 ? 'message' : 'messages'}
+        {/* Main Tiles Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          
+          {/* Messages Tile */}
+          <Link href="/messages" className="block group">
+            <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-all group-hover:scale-105">
+              <div className="flex items-center justify-between mb-4">
+                <div className="bg-blue-100 rounded-lg p-3">
+                  <div className="text-3xl">💬</div>
+                </div>
+                <div className="text-2xl text-gray-400 group-hover:text-blue-600 transition-colors">→</div>
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Messages</h3>
+              <p className="text-gray-600 mb-2">
+                <span className="text-2xl font-bold">{messages.length}</span> messages
               </p>
-              <div className="mt-4">
-                <Button variant="link" className="px-0 text-blue-600 hover:text-blue-700">
-                  View Messages →
-                </Button>
-              </div>
+              {messages.length > 0 && (
+                <p className="text-sm text-gray-500">Recent: {messages[0].text || 'No recent messages'}</p>
+              )}
             </div>
           </Link>
 
-          <Link href="/gallery" className="block">
-            <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
-              <div className="text-4xl mb-3">📸</div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-2">Gallery</h3>
-              <p className="text-gray-600 text-sm">
-                {recentPhotos.length} {recentPhotos.length === 1 ? 'photo' : 'photos'}
+          {/* Gallery Tile */}
+          <Link href="/gallery" className="block group">
+            <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-all group-hover:scale-105">
+              <div className="flex items-center justify-between mb-4">
+                <div className="bg-green-100 rounded-lg p-3">
+                  <div className="text-3xl">📸</div>
+                </div>
+                <div className="text-2xl text-gray-400 group-hover:text-green-600 transition-colors">→</div>
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Photo Gallery</h3>
+              <p className="text-gray-600 mb-2">
+                <span className="text-2xl font-bold">{recentPhotos.length}</span> photos
               </p>
-              <div className="mt-4">
-                <Button variant="link" className="px-0 text-blue-600 hover:text-blue-700">
-                  View Gallery →
-                </Button>
-              </div>
+              {recentPhotos.length > 0 && (
+                <p className="text-sm text-gray-500">Last: {recentPhotos[0].displayName}</p>
+              )}
             </div>
           </Link>
 
-          <Link href="/calendar" className="block">
-            <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
-              <div className="text-4xl mb-3">📅</div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-2">Calendar</h3>
-              <p className="text-gray-600 text-sm">
-                {upcomingEvents.length} {upcomingEvents.length === 1 ? 'event' : 'events'} coming up
+          {/* Calendar Tile */}
+          <Link href="/calendar" className="block group">
+            <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-all group-hover:scale-105">
+              <div className="flex items-center justify-between mb-4">
+                <div className="bg-purple-100 rounded-lg p-3">
+                  <div className="text-3xl">📅</div>
+                </div>
+                <div className="text-2xl text-gray-400 group-hover:text-purple-600 transition-colors">→</div>
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Calendar</h3>
+              <p className="text-gray-600 mb-2">
+                <span className="text-2xl font-bold">{upcomingEvents.length}</span> upcoming events
               </p>
-              <div className="mt-4">
-                <Button variant="link" className="px-0 text-blue-600 hover:text-blue-700">
-                  View Calendar →
-                </Button>
-              </div>
+              {upcomingEvents.length > 0 && (
+                <p className="text-sm text-gray-500">Next: {upcomingEvents[0].title}</p>
+              )}
             </div>
           </Link>
 
-          <Link href="/events" className="block">
-            <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
-              <div className="text-4xl mb-3">🎉</div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-2">Events</h3>
-              <p className="text-gray-600 text-sm">Plan and manage trips</p>
-              <div className="mt-4">
-                <Button variant="link" className="px-0 text-blue-600 hover:text-blue-700">
-                  Create Event →
-                </Button>
+          {/* Events Tile */}
+          <Link href="/events" className="block group">
+            <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-all group-hover:scale-105">
+              <div className="flex items-center justify-between mb-4">
+                <div className="bg-orange-100 rounded-lg p-3">
+                  <div className="text-3xl">🎉</div>
+                </div>
+                <div className="text-2xl text-gray-400 group-hover:text-orange-600 transition-colors">→</div>
               </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Events</h3>
+              <p className="text-gray-600 mb-2">Plan your next adventure</p>
+              <p className="text-sm text-gray-500">
+                Create events with details, checklists & costs
+              </p>
             </div>
           </Link>
-        </div>
 
-        {/* Upcoming Events */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold text-gray-800">📅 Upcoming Events</h2>
-            <Link href="/events">
-              <Button variant="ghost" className="text-blue-600 hover:text-blue-700">
-                View All Events →
-              </Button>
-            </Link>
-          </div>
-
-          {upcomingEvents.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-md p-6 text-center">
-              <p className="text-gray-500 mb-4">No upcoming events</p>
-              <Link href="/events">
-                <Button>
-                  Plan Your First Event 🎉
-                </Button>
-              </Link>
+          {/* Recent Activity Tile */}
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="bg-pink-100 rounded-lg p-3">
+                <div className="text-3xl">👥</div>
+              </div>
+              <Link href="/messages" className="text-blue-600 hover:text-blue-700 text-sm font-medium">View All →</Link>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {upcomingEvents.slice(0, 4).map((event) => {
-                const eventDate = new Date(event.event_date)
-                return (
-                  <div key={event.id} className="bg-white border-l-4 border-blue-500 rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900">{event.title}</h3>
-                        <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-                          <span>📅 {event.displayDate}</span>
-                          {event.is_multi_day && (
-                            <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded">Multi-day</span>
-                          )}
-                        </div>
-                        {event.description && (
-                          <p className="text-sm text-gray-700 mt-2 line-clamp-2">{event.description}</p>
-                        )}
-                      </div>
-                      <Link href={`/events`} className="text-blue-600 hover:text-blue-700 text-sm ml-2">
-                        Details →
-                      </Link>
-                    </div>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Recent Activity</h3>
+            <div className="space-y-2">
+              {friendsActivity.length === 0 && messages.length === 0 && (
+                <p className="text-gray-500 text-sm">No recent activity</p>
+              )}
+              {[...friendsActivity, ...messages].slice(0, 4).map((activity, index) => (
+                <div key={index} className="text-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <span className="font-medium text-gray-900">{activity.user}</span>
                   </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Recent Photos */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold text-gray-800">📸 Recent Photos</h2>
-            <Link href="/gallery">
-              <Button variant="ghost" className="text-blue-600 hover:text-blue-700">
-                View All Photos →
-              </Button>
-            </Link>
-          </div>
-
-          {recentPhotos.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-md p-6 text-center">
-              <p className="text-gray-500 mb-4">No photos yet</p>
-              <Link href="/gallery">
-                <Button>
-                  Upload Your First Photo 📸
-                </Button>
-              </Link>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {recentPhotos.slice(0, 6).map((photo) => (
-                <a key={photo.id} href={`/gallery`} className="group block">
-                  <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-                    <img
-                      src={photo.publicUrl}
-                      alt="Gallery"
-                      loading="lazy"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 text-center mt-1 truncate">{photo.displayName}</p>
-                </a>
+                  <p className="text-gray-600 text-xs ml-4">{activity.text || activity.title}</p>
+                </div>
               ))}
             </div>
-          )}
-        </div>
-      </main>
+          </div>
 
-      <footer className="bg-gray-900 text-white py-8 mt-8">
-        <div className="container mx-auto px-4 text-center">
-          <p className="text-sm text-gray-400">
-            © 2026 Friends Hub • {messages.length} message{messages.length !== 1 ? 's' : ''} • {recentPhotos.length} photo{recentPhotos.length !== 1 ? 's' : ''} • {upcomingEvents.length} event{upcomingEvents.length !== 1 ? 's' : ''}
-          </p>
+          {/* Quick Actions Tile */}
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Quick Actions</h3>
+            <div className="space-y-2">
+              <Link href="/messages">
+                <Button variant="outline" className="w-full justify-start h-12">
+                  <span className="mr-2">💬</span> Post Message
+                </Button>
+              </Link>
+              <Link href="/gallery">
+                <Button variant="outline" className="w-full justify-start h-12">
+                  <span className="mr-2">📸</span> Upload Photo
+                </Button>
+              </Link>
+              <Link href="/events">
+                <Button variant="outline" className="w-full justify-start h-12">
+                  <span className="mr-2">🎉</span> Create Event
+                </Button>
+              </Link>
+            </div>
+          </div>
+
         </div>
-      </footer>
+
+        {/* Upcoming Events Preview */}
+        {upcomingEvents.length > 0 && (
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold text-gray-800">📅 This Week's Events</h2>
+              <Link href="/calendar">
+                <Button variant="ghost" className="text-blue-600 hover:text-blue-700">
+                  View Calendar →
+                </Button>
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {upcomingEvents.slice(0, 3).map((event) => (
+                <div key={event.id} className="bg-white border-l-4 border-blue-500 rounded-lg shadow-md p-4">
+                  <h3 className="font-semibold text-gray-900">{event.title}</h3>
+                  <p className="text-sm text-gray-600 mt-1">📅 {event.displayDate}</p>
+                  {event.description && (
+                    <p className="text-sm text-gray-700 mt-2 line-clamp-2">{event.description}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   )
 }
