@@ -353,37 +353,44 @@ export default function Home() {
 
         </div>
 
-        {/* Upcoming Events Tile */}
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold text-gray-800">📅 Upcoming Events</h3>
-            <Link href="/calendar" className="text-blue-600 hover:text-blue700 text-sm font-medium">View All →</Link>
-          </div>
-          
-          {upcomingEvents.length === 0 ? (
-            <div className="text-center py-4">
-              <p className="text-gray-500 mb-2">No upcoming events</p>
-              <Link href="/events">
-                <Button>
-                  Plan One Now 🎉
-                </Button>
-              </Link>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Upcoming Events Section */}
+        {upcomingEvents.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">📅 Upcoming Events</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {upcomingEvents.slice(0, 3).map((event) => (
-                <div key={event.id} className="bg-gray-50 rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <h4 className="font-semibold text-gray-900 mb-2">{event.title}</h4>
-                  <p className="text-sm text-gray-600 mb-2">📅 {event.displayDate}</p>
+                <div key={event.id} className="bg-white rounded-xl shadow-md p-6 group hover:shadow-xl transition-all">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold text-gray-800">{event.title}</h3>
+                    <Link href="/events" className="text-gray-400 group-hover:text-blue-600 transition-colors">→</Link>
+                  </div>
+                  <p className="text-gray-600 mb-2">
+                    <span className="font-semibold">📅 {event.displayDate}</span>
+                  </p>
                   {event.description && (
-                    <p className="text-sm text-gray-700 line-clamp-2">{event.description}</p>
+                    <p className="text-gray-700 text-sm line-clamp-3">{event.description}</p>
                   )}
                 </div>
               ))}
             </div>
-          )}
-        </div>
+            <div className="mt-4 text-center">
+              <Link href="/events">
+                <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl">
+                  View All Events →
+                </Button>
+              </Link>
+            </div>
+          </div>
+        )}
       </main>
+
+      <footer className="bg-gray-900 text-white py-8 mt-8">
+        <div className="container mx-auto px-4 text-center">
+          <p className="text-sm text-gray-400">
+            © 2026 Friends Hub • {messages.length} message{messages.length !== 1 ? 's' : ''} • {recentPhotos.length} photo{recentPhotos.length !== 1 ? 's' : ''} • {upcomingEvents.length} event{upcomingEvents.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+      </footer>
     </div>
   )
 }
