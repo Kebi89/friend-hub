@@ -231,125 +231,129 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           
           {/* Messages Tile */}
-          <Link href="/messages" className="block group">
-            <div className="bg-white rounded-xl shadow-md p-6 transition-all group-hover:scale-105">
-              <div className="flex items-center justify-between mb-4">
+          <Link href="/messages" className="block group h-full">
+            <div className="bg-white rounded-xl shadow-md p-6 h-full flex flex-col transition-all group-hover:scale-105 hover:shadow-xl">
+              <div className="flex items-center justify-between mb-4 flex-shrink-0">
                 <div className="bg-blue-100 rounded-lg p-3">
                   <div className="text-3xl">💬</div>
                 </div>
-                <div className="text-2xl text-gray-400 group-hover:text-blue-600 transition-colors">→</div>
+                <div className="text-2xl text-gray-400 group-hover:text-blue-600 transition-colors flex-shrink-0">→</div>
               </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Messages</h3>
-              <p className="text-gray-600 mb-2">
+              <h3 className="text-xl font-bold text-gray-800 mb-2 flex-shrink-0">Messages</h3>
+              <p className="text-gray-600 mb-2 flex-shrink-0">
                 <span className="text-2xl font-bold">{messages.length}</span> messages
               </p>
               {messages.length > 0 && (
-                <p className="text-sm text-gray-500">Recent: {messages[0].text || 'No recent messages'}</p>
+                <p className="text-sm text-gray-500 line-clamp-2">Recent: {messages[0].text || 'No recent messages'}</p>
               )}
             </div>
           </Link>
 
           {/* Gallery Tile */}
-          <Link href="/gallery" className="block group">
-            <div className="bg-white rounded-xl shadow-md p-6 transition-all group-hover:scale-105">
-              <div className="flex items-center justify-between mb-4">
+          <Link href="/gallery" className="block group h-full">
+            <div className="bg-white rounded-xl shadow-md p-6 h-full flex flex-col transition-all group-hover:scale-105 hover:shadow-xl">
+              <div className="flex items-center justify-between mb-4 flex-shrink-0">
                 <div className="bg-green-100 rounded-lg p-3">
                   <div className="text-3xl">📸</div>
                 </div>
-                <div className="text-2xl text-gray-400 group-hover:text-green-600 transition-colors">→</div>
+                <div className="text-2xl text-gray-400 group-hover:text-green-600 transition-colors flex-shrink-0">→</div>
               </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Photo Gallery</h3>
-              <p className="text-gray-600 mb-2">
+              <h3 className="text-xl font-bold text-gray-800 mb-2 flex-shrink-0">Photo Gallery</h3>
+              <p className="text-gray-600 mb-2 flex-shrink-0">
                 <span className="text-2xl font-bold">{recentPhotos.length}</span> photos
               </p>
               {recentPhotos.length > 0 && (
-                <p className="text-sm text-gray-500">Last: {recentPhotos[0].displayName}</p>
+                <p className="text-sm text-gray-500 line-clamp-2">Last: {recentPhotos[0].displayName}</p>
               )}
             </div>
           </Link>
 
           {/* Calendar Tile */}
-          <Link href="/calendar" className="block group">
-            <div className="bg-white rounded-xl shadow-md p-6 transition-all group-hover:scale-105">
-              <div className="flex items-center justify-between mb-4">
+          <Link href="/calendar" className="block group h-full">
+            <div className="bg-white rounded-xl shadow-md p-6 h-full flex flex-col transition-all group-hover:scale-105 hover:shadow-xl">
+              <div className="flex items-center justify-between mb-4 flex-shrink-0">
                 <div className="bg-purple-100 rounded-lg p-3">
                   <div className="text-3xl">📅</div>
                 </div>
-                <div className="text-2xl text-gray-400 group-hover:text-purple-600 transition-colors">→</div>
+                <div className="text-2xl text-gray-400 group-hover:text-purple-600 transition-colors flex-shrink-0">→</div>
               </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Calendar</h3>
-              <p className="text-gray-600 mb-2">
+              <h3 className="text-xl font-bold text-gray-800 mb-2 flex-shrink-0">Calendar</h3>
+              <p className="text-gray-600 mb-2 flex-shrink-0">
                 <span className="text-2xl font-bold">{upcomingEvents.length}</span> upcoming events
               </p>
               {upcomingEvents.length > 0 && (
-                <p className="text-sm text-gray-500">Next: {upcomingEvents[0].title}</p>
+                <p className="text-sm text-gray-500 line-clamp-2">Next: {upcomingEvents[0].title}</p>
               )}
             </div>
           </Link>
 
           {/* Events Tile */}
-          <Link href="/events" className="block group">
-            <div className="bg-white rounded-xl shadow-md p-6 transition-all group-hover:scale-105">
-              <div className="flex items-center justify-between mb-4">
+          <Link href="/events" className="block group h-full">
+            <div className="bg-white rounded-xl shadow-md p-6 h-full flex flex-col transition-all group-hover:scale-105 hover:shadow-xl">
+              <div className="flex items-center justify-between mb-4 flex-shrink-0">
                 <div className="bg-orange-100 rounded-lg p-3">
                   <div className="text-3xl">🎉</div>
                 </div>
-                <div className="text-2xl text-gray-400 group-hover:text-orange-600 transition-colors">→</div>
+                <div className="text-2xl text-gray-400 group-hover:text-orange-600 transition-colors flex-shrink-0">→</div>
               </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Events</h3>
-              <p className="text-gray-600 mb-2">Plan your next adventure</p>
-              <p className="text-sm text-gray-500">
+              <h3 className="text-xl font-bold text-gray-800 mb-2 flex-shrink-0">Events</h3>
+              <p className="text-gray-600 mb-2 flex-shrink-0">Plan your next adventure</p>
+              <p className="text-sm text-gray-500 line-clamp-2">
                 Create events with details, checklists & costs
               </p>
             </div>
           </Link>
 
           {/* Recent Activity Tile */}
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-pink-100 rounded-lg p-3">
-                <div className="text-3xl">👥</div>
-              </div>
-              <Link href="/messages" className="text-blue-600 hover:text-blue-700 text-sm font-medium">View All →</Link>
-            </div>
-            <h3 className="text-xl font-bold text-gray-800 mb-2">Recent Activity</h3>
-            <div className="space-y-2">
-              {friendsActivity.length === 0 && messages.length === 0 && (
-                <p className="text-gray-500 text-sm">No recent activity</p>
-              )}
-              {[...friendsActivity, ...messages].slice(0, 4).map((activity, index) => (
-                <div key={index} className="text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <span className="font-medium text-gray-900">{activity.user}</span>
-                  </div>
-                  <p className="text-gray-600 text-xs ml-4">{activity.text || activity.title}</p>
+          <Link href="/messages" className="block group h-full">
+            <div className="bg-white rounded-xl shadow-md p-6 h-full flex flex-col transition-all group-hover:scale-105 hover:shadow-xl">
+              <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                <div className="bg-pink-100 rounded-lg p-3">
+                  <div className="text-3xl">👥</div>
                 </div>
-              ))}
+                <Link href="/messages" className="text-blue-600 hover:text-blue-700 text-sm font-medium flex-shrink-0">View All →</Link>
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2 flex-shrink-0">Recent Activity</h3>
+              <div className="space-y-2 overflow-hidden flex-grow">
+                {friendsActivity.length === 0 && messages.length === 0 && (
+                  <p className="text-gray-500 text-sm">No recent activity</p>
+                )}
+                {[...friendsActivity, ...messages].slice(0, 4).map((activity, index) => (
+                  <div key={index} className="text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
+                      <span className="font-medium text-gray-900 truncate">{activity.user}</span>
+                    </div>
+                    <p className="text-gray-600 text-xs ml-4 truncate">{activity.text || activity.title}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          </Link>
 
           {/* Quick Actions Tile */}
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">Quick Actions</h3>
-            <div className="space-y-2">
-              <Link href="/messages">
-                <Button variant="outline" className="w-full justify-start h-12">
-                  <span className="mr-2">💬</span> Post Message
-                </Button>
-              </Link>
-              <Link href="/gallery">
-                <Button variant="outline" className="w-full justify-start h-12">
-                  <span className="mr-2">📸</span> Upload Photo
-                </Button>
-              </Link>
-              <Link href="/events">
-                <Button variant="outline" className="w-full justify-start h-12">
-                  <span className="mr-2">🎉</span> Create Event
-                </Button>
-              </Link>
+          <Link href="/messages" className="block group h-full">
+            <div className="bg-white rounded-xl shadow-md p-6 h-full flex flex-col transition-all group-hover:scale-105 hover:shadow-xl">
+              <h3 className="text-xl font-bold text-gray-800 mb-4 flex-shrink-0">Quick Actions</h3>
+              <div className="space-y-2 overflow-hidden flex-grow">
+                <Link href="/messages">
+                  <Button variant="outline" className="w-full justify-start h-10">
+                    <span className="mr-2">💬</span> Post Message
+                  </Button>
+                </Link>
+                <Link href="/gallery">
+                  <Button variant="outline" className="w-full justify-start h-10">
+                    <span className="mr-2">📸</span> Upload Photo
+                  </Button>
+                </Link>
+                <Link href="/events">
+                  <Button variant="outline" className="w-full justify-start h-10">
+                    <span className="mr-2">🎉</span> Create Event
+                  </Button>
+                </Link>
+              </div>
             </div>
-          </div>
+          </Link>
 
         </div>
 
