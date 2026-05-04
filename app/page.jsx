@@ -227,93 +227,109 @@ export default function Home() {
           <p className="text-gray-600">Here's what's happening in your Friends Hub</p>
         </div>
 
-        {/* Main Tiles Grid - 6 tiles in 2 rows */}
+        {/* Main Tiles Grid - 6 tiles in 2 rows - All same height */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           
           {/* Messages Tile */}
           <Link href="/messages" className="block group h-full">
             <div className="bg-white rounded-xl shadow-md p-6 h-full flex flex-col transition-all group-hover:scale-105 hover:shadow-xl">
-              <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                <div className="bg-blue-100 rounded-lg p-3">
-                  <div className="text-3xl">💬</div>
+              {/* Icon and Title Side-by-Side */}
+              <div className="flex items-start gap-3 mb-4 flex-shrink-0">
+                <div className="bg-blue-100 rounded-lg p-2">
+                  <div className="text-2xl text-blue-600">💬</div>
                 </div>
-                <div className="text-2xl text-gray-400 group-hover:text-blue-600 transition-colors flex-shrink-0">→</div>
+                <h3 className="text-lg font-bold text-gray-800 mt-1">Messages</h3>
               </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2 flex-shrink-0">Messages</h3>
-              <p className="text-gray-600 mb-2 flex-shrink-0">
-                <span className="text-2xl font-bold">{messages.length}</span> messages
-              </p>
-              {messages.length > 0 && (
-                <p className="text-sm text-gray-500 line-clamp-2">Recent: {messages[0].text || 'No recent messages'}</p>
-              )}
+              {/* Content */}
+              <div className="space-y-2 overflow-hidden flex-grow">
+                <p className="text-gray-600 flex-shrink-0">
+                  <span className="text-2xl font-bold">{messages.length}</span> messages
+                </p>
+                {messages.length > 0 && (
+                  <p className="text-sm text-gray-500 line-clamp-2">Recent: {messages[0].text || 'No recent messages'}</p>
+                )}
+              </div>
             </div>
           </Link>
 
           {/* Gallery Tile */}
           <Link href="/gallery" className="block group h-full">
             <div className="bg-white rounded-xl shadow-md p-6 h-full flex flex-col transition-all group-hover:scale-105 hover:shadow-xl">
-              <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                <div className="bg-green-100 rounded-lg p-3">
-                  <div className="text-3xl">📸</div>
+              {/* Icon and Title Side-by-Side */}
+              <div className="flex items-start gap-3 mb-4 flex-shrink-0">
+                <div className="bg-green-100 rounded-lg p-2">
+                  <div className="text-2xl text-green-600">📸</div>
                 </div>
-                <div className="text-2xl text-gray-400 group-hover:text-green-600 transition-colors flex-shrink-0">→</div>
+                <h3 className="text-lg font-bold text-gray-800 mt-1">Photo Gallery</h3>
               </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2 flex-shrink-0">Photo Gallery</h3>
-              <p className="text-gray-600 mb-2 flex-shrink-0">
-                <span className="text-2xl font-bold">{recentPhotos.length}</span> photos
-              </p>
-              {recentPhotos.length > 0 && (
-                <p className="text-sm text-gray-500 line-clamp-2">Last: {recentPhotos[0].displayName}</p>
-              )}
+              {/* Content */}
+              <div className="space-y-2 overflow-hidden flex-grow">
+                <p className="text-gray-600 flex-shrink-0">
+                  <span className="text-2xl font-bold">{recentPhotos.length}</span> photos
+                </p>
+                {recentPhotos.length > 0 && (
+                  <p className="text-sm text-gray-500 line-clamp-2">Last: {recentPhotos[0].displayName}</p>
+                )}
+              </div>
             </div>
           </Link>
 
           {/* Calendar Tile */}
           <Link href="/calendar" className="block group h-full">
             <div className="bg-white rounded-xl shadow-md p-6 h-full flex flex-col transition-all group-hover:scale-105 hover:shadow-xl">
-              <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                <div className="bg-purple-100 rounded-lg p-3">
-                  <div className="text-3xl">📅</div>
+              {/* Icon and Title Side-by-Side */}
+              <div className="flex items-start gap-3 mb-4 flex-shrink-0">
+                <div className="bg-purple-100 rounded-lg p-2">
+                  <div className="text-2xl text-purple-600">📅</div>
                 </div>
-                <div className="text-2xl text-gray-400 group-hover:text-purple-600 transition-colors flex-shrink-0">→</div>
+                <h3 className="text-lg font-bold text-gray-800 mt-1">Calendar</h3>
               </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2 flex-shrink-0">Calendar</h3>
-              <p className="text-gray-600 mb-2 flex-shrink-0">
-                <span className="text-2xl font-bold">{upcomingEvents.length}</span> upcoming events
-              </p>
-              {upcomingEvents.length > 0 && (
-                <p className="text-sm text-gray-500 line-clamp-2">Next: {upcomingEvents[0].title}</p>
-              )}
+              {/* Content */}
+              <div className="space-y-2 overflow-hidden flex-grow">
+                <p className="text-gray-600 flex-shrink-0">
+                  <span className="text-2xl font-bold">{upcomingEvents.length}</span> upcoming events
+                </p>
+                {upcomingEvents.length > 0 && (
+                  <p className="text-sm text-gray-500 line-clamp-2">Next: {upcomingEvents[0].title}</p>
+                )}
+              </div>
             </div>
           </Link>
 
           {/* Events Tile */}
           <Link href="/events" className="block group h-full">
             <div className="bg-white rounded-xl shadow-md p-6 h-full flex flex-col transition-all group-hover:scale-105 hover:shadow-xl">
-              <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                <div className="bg-orange-100 rounded-lg p-3">
-                  <div className="text-3xl">🎉</div>
+              {/* Icon and Title Side-by-Side */}
+              <div className="flex items-start gap-3 mb-4 flex-shrink-0">
+                <div className="bg-orange-100 rounded-lg p-2">
+                  <div className="text-2xl text-orange-600">🎉</div>
                 </div>
-                <div className="text-2xl text-gray-400 group-hover:text-orange-600 transition-colors flex-shrink-0">→</div>
+                <h3 className="text-lg font-bold text-gray-800 mt-1">Events</h3>
               </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2 flex-shrink-0">Events</h3>
-              <p className="text-gray-600 mb-2 flex-shrink-0">Plan your next adventure</p>
-              <p className="text-sm text-gray-500 line-clamp-2">
-                Create events with details, checklists & costs
-              </p>
+              {/* Content */}
+              <div className="space-y-2 overflow-hidden flex-grow">
+                <p className="text-gray-600 flex-shrink-0">Plan your next adventure</p>
+                <p className="text-sm text-gray-500 line-clamp-2">
+                  Create events with details, checklists & costs
+                </p>
+              </div>
             </div>
           </Link>
 
           {/* Recent Activity Tile */}
           <Link href="/messages" className="block group h-full">
             <div className="bg-white rounded-xl shadow-md p-6 h-full flex flex-col transition-all group-hover:scale-105 hover:shadow-xl">
-              <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                <div className="bg-pink-100 rounded-lg p-3">
-                  <div className="text-3xl">👥</div>
+              {/* Icon and Title Side-by-Side */}
+              <div className="flex items-start justify-between gap-3 mb-4 flex-shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="bg-pink-100 rounded-lg p-2">
+                    <div className="text-2xl text-pink-600">👥</div>
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-800 mt-1">Recent Activity</h3>
                 </div>
                 <Link href="/messages" className="text-blue-600 hover:text-blue-700 text-sm font-medium flex-shrink-0">View All →</Link>
               </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2 flex-shrink-0">Recent Activity</h3>
+              {/* Content */}
               <div className="space-y-2 overflow-hidden flex-grow">
                 {friendsActivity.length === 0 && messages.length === 0 && (
                   <p className="text-gray-500 text-sm">No recent activity</p>
@@ -334,7 +350,9 @@ export default function Home() {
           {/* Quick Actions Tile */}
           <Link href="/messages" className="block group h-full">
             <div className="bg-white rounded-xl shadow-md p-6 h-full flex flex-col transition-all group-hover:scale-105 hover:shadow-xl">
-              <h3 className="text-xl font-bold text-gray-800 mb-4 flex-shrink-0">Quick Actions</h3>
+              {/* Title (no icon) */}
+              <h3 className="text-lg font-bold text-gray-800 mb-4 flex-shrink-0">Quick Actions</h3>
+              {/* Content */}
               <div className="space-y-2 overflow-hidden flex-grow">
                 <Link href="/messages">
                   <Button variant="outline" className="w-full justify-start h-10">
