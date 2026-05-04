@@ -60,8 +60,7 @@ export default function Home() {
           profiles (
             id,
             display_name,
-            nickname,
-            email
+            nickname
           )
         `)
         .order('created_at', { ascending: false })
@@ -228,12 +227,12 @@ export default function Home() {
           <p className="text-gray-600">Here's what's happening in your Friends Hub</p>
         </div>
 
-        {/* Main Tiles Grid */}
+        {/* Main Tiles Grid - 6 tiles in 2 rows */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           
           {/* Messages Tile */}
           <Link href="/messages" className="block group">
-            <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-all group-hover:scale-105">
+            <div className="bg-white rounded-xl shadow-md p-6 transition-all group-hover:scale-105">
               <div className="flex items-center justify-between mb-4">
                 <div className="bg-blue-100 rounded-lg p-3">
                   <div className="text-3xl">💬</div>
@@ -252,7 +251,7 @@ export default function Home() {
 
           {/* Gallery Tile */}
           <Link href="/gallery" className="block group">
-            <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-all group-hover:scale-105">
+            <div className="bg-white rounded-xl shadow-md p-6 transition-all group-hover:scale-105">
               <div className="flex items-center justify-between mb-4">
                 <div className="bg-green-100 rounded-lg p-3">
                   <div className="text-3xl">📸</div>
@@ -271,7 +270,7 @@ export default function Home() {
 
           {/* Calendar Tile */}
           <Link href="/calendar" className="block group">
-            <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-all group-hover:scale-105">
+            <div className="bg-white rounded-xl shadow-md p-6 transition-all group-hover:scale-105">
               <div className="flex items-center justify-between mb-4">
                 <div className="bg-purple-100 rounded-lg p-3">
                   <div className="text-3xl">📅</div>
@@ -290,7 +289,7 @@ export default function Home() {
 
           {/* Events Tile */}
           <Link href="/events" className="block group">
-            <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-all group-hover:scale-105">
+            <div className="bg-white rounded-xl shadow-md p-6 transition-all group-hover:scale-105">
               <div className="flex items-center justify-between mb-4">
                 <div className="bg-orange-100 rounded-lg p-3">
                   <div className="text-3xl">🎉</div>
@@ -354,30 +353,36 @@ export default function Home() {
 
         </div>
 
-        {/* Upcoming Events Preview */}
-        {upcomingEvents.length > 0 && (
-          <div className="mb-8">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-gray-800">📅 This Week's Events</h2>
-              <Link href="/calendar">
-                <Button variant="ghost" className="text-blue-600 hover:text-blue-700">
-                  View Calendar →
+        {/* Upcoming Events Tile */}
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-gray-800">📅 Upcoming Events</h3>
+            <Link href="/calendar" className="text-blue-600 hover:text-blue700 text-sm font-medium">View All →</Link>
+          </div>
+          
+          {upcomingEvents.length === 0 ? (
+            <div className="text-center py-4">
+              <p className="text-gray-500 mb-2">No upcoming events</p>
+              <Link href="/events">
+                <Button>
+                  Plan One Now 🎉
                 </Button>
               </Link>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {upcomingEvents.slice(0, 3).map((event) => (
-                <div key={event.id} className="bg-white border-l-4 border-blue-500 rounded-lg shadow-md p-4">
-                  <h3 className="font-semibold text-gray-900">{event.title}</h3>
-                  <p className="text-sm text-gray-600 mt-1">📅 {event.displayDate}</p>
+                <div key={event.id} className="bg-gray-50 rounded-lg p-4 hover:shadow-md transition-shadow">
+                  <h4 className="font-semibold text-gray-900 mb-2">{event.title}</h4>
+                  <p className="text-sm text-gray-600 mb-2">📅 {event.displayDate}</p>
                   {event.description && (
-                    <p className="text-sm text-gray-700 mt-2 line-clamp-2">{event.description}</p>
+                    <p className="text-sm text-gray-700 line-clamp-2">{event.description}</p>
                   )}
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </main>
     </div>
   )
