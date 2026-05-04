@@ -48,10 +48,10 @@ export default function Navbar({ isAuthenticated = null, user = null }) {
 
   // Desktop nav links (always visible)
   const navLinks = [
-    { href: '/', label: 'Home', requireAuth: false },
     { href: '/messages', label: 'Messages', requireAuth: true },
     { href: '/gallery', label: 'Gallery', requireAuth: true },
     { href: '/calendar', label: 'Calendar', requireAuth: true },
+    { href: '/events', label: 'Events', requireAuth: true },
   ]
 
   return (
