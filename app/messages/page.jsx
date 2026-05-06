@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { CalendarDays, MessageCircle, Send, Trash2 } from 'lucide-react'
+import { ArrowLeft, CalendarDays, MessageCircle, Plus, Send, Trash2 } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import { supabase } from '@/lib/supabase'
 import {
@@ -26,11 +26,21 @@ export default function MessagesPage() {
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [userId, setUserId] = useState(null)
   const router = useRouter()
+  const fallbackHubChat = {
+    id: HUB_CHAT_ID,
+    title: 'Hub',
+    type: 'hub',
+    eventDate: null,
+    endDate: null,
+  }
 
   const hubChats = chats.filter((chat) => chat.type === 'hub')
   const eventChats = chats.filter((chat) => chat.type === 'event')
   const visibleChats = activeTab === 'events' ? eventChats : hubChats
-  const selectedChat = visibleChats.find((chat) => chat.id === selectedChatId) || visibleChats[0]
+  const selectedChat = activeTab === 'hub'
+    ? visibleChats.find((chat) => chat.id === selectedChatId) || fallbackHubChat
+    : visibleChats.find((chat) => chat.id === selectedChatId) || null
+  const isGroupDirectory = activeTab !== 'hub' && !selectedChatId
 
   const loadChats = useCallback(async (currentUserId) => {
     const visible = await getVisibleChats(currentUserId)
@@ -38,9 +48,12 @@ export default function MessagesPage() {
 
     const hasSelected = visible.some((chat) => chat.id === selectedChatId)
     if (!hasSelected) {
-      const nextChat = visible.find((chat) => chat.type === activeTab) || visible[0]
-      setSelectedChatId(nextChat?.id || HUB_CHAT_ID)
-      if (nextChat?.type) setActiveTab(nextChat.type === 'event' ? 'events' : 'hub')
+      if (activeTab === 'hub') {
+        const nextChat = visible.find((chat) => chat.type === 'hub')
+        setSelectedChatId(nextChat?.id || HUB_CHAT_ID)
+      } else {
+        setSelectedChatId(null)
+      }
     }
   }, [activeTab, selectedChatId])
 
@@ -75,7 +88,12 @@ export default function MessagesPage() {
   }, [loadChats, router])
 
   useEffect(() => {
-    if (!isLoaded || !userId || !selectedChatId) return
+    if (!isLoaded || !userId) return
+
+    if (!selectedChatId) {
+      setMessages([])
+      return
+    }
 
     loadMessages(selectedChatId)
 
@@ -111,9 +129,10 @@ export default function MessagesPage() {
 
   const handleTabChange = (tab) => {
     setActiveTab(tab)
-    const nextChat = chats.find((chat) => tab === 'events' ? chat.type === 'event' : chat.type === 'hub')
-    setSelectedChatId(nextChat?.id || HUB_CHAT_ID)
+    const nextChat = chats.find((chat) => tab === 'hub' && chat.type === 'hub')
+    setSelectedChatId(tab === 'hub' ? nextChat?.id || HUB_CHAT_ID : null)
     setNewMessage('')
+    setMessages([])
   }
 
   const handleChatSelect = (chatId) => {
@@ -233,6 +252,20 @@ export default function MessagesPage() {
 
             {visibleChats.length > 0 && (
               <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                {activeTab !== 'hub' && selectedChatId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedChatId(null)
+                      setMessages([])
+                      setNewMessage('')
+                    }}
+                    className="flex shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-300"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Groups
+                  </button>
+                )}
                 {visibleChats.map((chat) => (
                   <button
                     key={chat.id}
@@ -255,7 +288,21 @@ export default function MessagesPage() {
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 px-3 py-5 sm:px-6">
-            {activeTab === 'events' && eventChats.length === 0 ? (
+            {isGroupDirectory && eventChats.length > 0 ? (
+              <div className="mx-auto grid max-w-3xl gap-3 sm:grid-cols-2">
+                {eventChats.map((chat) => (
+                  <button
+                    key={chat.id}
+                    type="button"
+                    onClick={() => handleChatSelect(chat.id)}
+                    className="rounded-lg border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
+                  >
+                    <span className="block font-semibold text-slate-900">{chat.title}</span>
+                    <span className="mt-1 block text-sm text-slate-500">{formatEventDate(chat)}</span>
+                  </button>
+                ))}
+              </div>
+            ) : activeTab === 'events' && eventChats.length === 0 ? (
               <div className="flex h-full items-center justify-center text-center">
                 <div>
                   <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-sm">
@@ -330,6 +377,18 @@ export default function MessagesPage() {
             )}
           </div>
 
+          {isGroupDirectory ? (
+            <div className="border-t border-slate-200 bg-white p-3 sm:p-4">
+              <button
+                type="button"
+                onClick={() => router.push('/events')}
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-700"
+              >
+                <Plus className="h-5 w-5" />
+                Create Group
+              </button>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="border-t border-slate-200 bg-white p-3 sm:p-4">
             <div className="flex items-end gap-2">
               <div className="min-w-0 flex-1">
@@ -348,12 +407,12 @@ export default function MessagesPage() {
                   rows="1"
                   className="max-h-32 min-h-11 w-full resize-none rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   required
-                  disabled={!userId || !selectedChat}
+                  disabled={!userId || !selectedChatId}
                 />
               </div>
               <button
                 type="submit"
-                disabled={!userId || !selectedChat || !newMessage.trim()}
+                disabled={!userId || !selectedChatId || !newMessage.trim()}
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="Send message"
               >
@@ -361,6 +420,7 @@ export default function MessagesPage() {
               </button>
             </div>
           </form>
+          )}
         </section>
       </main>
     </div>

@@ -312,6 +312,29 @@ export async function createEventChat(eventId: string, title: string, createdBy:
 }
 
 // ============================================
+// SAVE EVENT ACCESS
+// ============================================
+export async function saveEventAccess(eventId: string, creatorId: string, memberIds: string[]) {
+  try {
+    const uniqueMemberIds = Array.from(new Set([creatorId, ...memberIds].filter(Boolean)))
+    const participantRows = uniqueMemberIds.map((memberId) => ({
+      event_id: eventId,
+      user_id: memberId,
+    }))
+
+    const { error } = await supabase
+      .from('event_participants')
+      .upsert(participantRows, { onConflict: 'event_id,user_id' })
+
+    if (error) throw error
+    return true
+  } catch (error) {
+    console.error('Save event access error:', error)
+    return false
+  }
+}
+
+// ============================================
 // DELETE MESSAGE
 // ============================================
 export async function deleteMessage(messageId: string) {

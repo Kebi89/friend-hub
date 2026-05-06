@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { CalendarDays, MapPin, PartyPopper, Plus, Users } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import { supabase } from '@/lib/supabase'
-import { createEventChat, requireCurrentUser } from '@/lib/auth'
+import { createEventChat, requireCurrentUser, saveEventAccess } from '@/lib/auth'
 
 const emptyForm = {
   title: '',
@@ -17,7 +17,7 @@ const emptyForm = {
   is_multi_day: false,
   costs: [],
   create_chat: false,
-  chat_member_ids: [],
+  access_member_ids: [],
 }
 
 export default function EventsPage() {
@@ -105,12 +105,28 @@ export default function EventsPage() {
       const { data: savedEvent, error } = await query
       if (error) throw error
 
+      if (!editingEvent && savedEvent) {
+        const accessSaved = await saveEventAccess(
+          savedEvent.id,
+          userId,
+          formData.is_public ? [] : formData.access_member_ids
+        )
+
+        if (!accessSaved) {
+          alert('Event created, but access permissions could not be saved.')
+        }
+      }
+
       if (!editingEvent && formData.create_chat && savedEvent) {
+        const chatMemberIds = formData.is_public
+          ? profiles.map(profile => profile.id)
+          : formData.access_member_ids
+
         const chat = await createEventChat(
           savedEvent.id,
           savedEvent.title,
           userId,
-          formData.chat_member_ids
+          chatMemberIds
         )
 
         if (!chat) {
@@ -162,12 +178,12 @@ export default function EventsPage() {
     resetForm()
   }
 
-  const toggleChatMember = (memberId) => {
+  const toggleAccessMember = (memberId) => {
     setFormData(prev => ({
       ...prev,
-      chat_member_ids: prev.chat_member_ids.includes(memberId)
-        ? prev.chat_member_ids.filter(id => id !== memberId)
-        : [...prev.chat_member_ids, memberId],
+      access_member_ids: prev.access_member_ids.includes(memberId)
+        ? prev.access_member_ids.filter(id => id !== memberId)
+        : [...prev.access_member_ids, memberId],
     }))
   }
 
@@ -183,7 +199,7 @@ export default function EventsPage() {
       is_multi_day: !!event.end_date,
       costs: event.costs || [],
       create_chat: false,
-      chat_member_ids: [],
+      access_member_ids: [],
     })
     setShowCreateForm(true)
   }
@@ -297,50 +313,65 @@ export default function EventsPage() {
               </div>
 
               {!editingEvent && (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-800">
-                    <input
-                      type="checkbox"
-                      checked={formData.create_chat}
-                      onChange={(e) => setFormData(prev => ({ ...prev, create_chat: e.target.checked }))}
-                    />
-                    Create a dedicated event chat
-                  </label>
-                  <p className="mt-1 text-xs text-gray-500">
-                    The chat appears under Messages &gt; Events for selected members and disappears after the event date has passed.
-                  </p>
+                <>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-800">
+                      <input
+                        type="checkbox"
+                        checked={formData.is_public}
+                        onChange={(e) => setFormData(prev => ({ ...prev, is_public: e.target.checked, access_member_ids: e.target.checked ? [] : prev.access_member_ids }))}
+                      />
+                      Visible to everyone in the Hub
+                    </label>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Turn this off for private events. Only selected members will see the event and anything connected to it.
+                    </p>
 
-                  {formData.create_chat && (
-                    <div className="mt-4">
-                      <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-800">
-                        <Users className="h-4 w-4" />
-                        Members
+                    {!formData.is_public && (
+                      <div className="mt-4">
+                        <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-800">
+                          <Users className="h-4 w-4" />
+                          Event access
+                        </div>
+                        <div className="max-h-44 space-y-2 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2">
+                          {profiles.filter(profile => profile.id !== userId).length === 0 ? (
+                            <p className="px-2 py-3 text-sm text-gray-500">No other profiles found yet.</p>
+                          ) : (
+                            profiles.filter(profile => profile.id !== userId).map(profile => {
+                              const label = profile.display_name || profile.nickname || profile.email || 'Friend'
+                              return (
+                                <label key={profile.id} className="flex items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-slate-50">
+                                  <input
+                                    type="checkbox"
+                                    checked={formData.access_member_ids.includes(profile.id)}
+                                    onChange={() => toggleAccessMember(profile.id)}
+                                  />
+                                  <span className="min-w-0 flex-1 truncate">{label}</span>
+                                </label>
+                              )
+                            })
+                          )}
+                        </div>
+                        <p className="mt-2 text-xs text-gray-500">You are included automatically.</p>
                       </div>
-                      <div className="max-h-44 space-y-2 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2">
-                        {profiles.filter(profile => profile.id !== userId).length === 0 ? (
-                          <p className="px-2 py-3 text-sm text-gray-500">No other profiles found yet.</p>
-                        ) : (
-                          profiles.filter(profile => profile.id !== userId).map(profile => {
-                            const label = profile.display_name || profile.nickname || profile.email || 'Friend'
-                            return (
-                              <label key={profile.id} className="flex items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-slate-50">
-                                <input
-                                  type="checkbox"
-                                  checked={formData.chat_member_ids.includes(profile.id)}
-                                  onChange={() => toggleChatMember(profile.id)}
-                                />
-                                <span className="min-w-0 flex-1 truncate">{label}</span>
-                              </label>
-                            )
-                          })
-                        )}
-                      </div>
-                      <p className="mt-2 text-xs text-gray-500">You are included automatically.</p>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-800">
+                      <input
+                        type="checkbox"
+                        checked={formData.create_chat}
+                        onChange={(e) => setFormData(prev => ({ ...prev, create_chat: e.target.checked }))}
+                      />
+                      Create a dedicated event chat
+                    </label>
+                    <p className="mt-1 text-xs text-gray-500">
+                      The chat uses the same event access list and disappears after the event date has passed.
+                    </p>
+                  </div>
+                </>
               )}
-
               <div className="mt-6 flex gap-3">
                 <button onClick={handleSaveEvent} className="flex-1 rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700">Save</button>
                 <button onClick={closeForm} className="flex-1 rounded-lg bg-gray-600 px-4 py-2 font-semibold text-white hover:bg-gray-700">Cancel</button>

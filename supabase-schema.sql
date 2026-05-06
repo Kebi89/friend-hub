@@ -162,6 +162,71 @@ ALTER TABLE event_participants ENABLE ROW LEVEL SECURITY;
 GRANT SELECT, INSERT, UPDATE, DELETE ON chats TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON chat_members TO authenticated;
 GRANT SELECT, INSERT, DELETE ON messages TO authenticated;
+GRANT SELECT, INSERT, DELETE ON event_participants TO authenticated;
+
+-- Private helper for event visibility checks. Keep security definer helpers outside exposed schemas.
+CREATE SCHEMA IF NOT EXISTS private;
+CREATE OR REPLACE FUNCTION private.can_access_event(check_event_id UUID, check_user_id UUID)
+RETURNS BOOLEAN
+LANGUAGE SQL
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.events
+    WHERE events.id = check_event_id
+      AND (
+        events.is_public = true
+        OR events.creator_id = check_user_id
+        OR EXISTS (
+          SELECT 1
+          FROM public.event_participants
+          WHERE event_participants.event_id = events.id
+            AND event_participants.user_id = check_user_id
+        )
+      )
+  );
+$$;
+REVOKE ALL ON FUNCTION private.can_access_event(UUID, UUID) FROM PUBLIC;
+GRANT USAGE ON SCHEMA private TO authenticated;
+GRANT EXECUTE ON FUNCTION private.can_access_event(UUID, UUID) TO authenticated;
+
+CREATE OR REPLACE FUNCTION private.can_access_chat(check_chat_id UUID, check_user_id UUID)
+RETURNS BOOLEAN
+LANGUAGE SQL
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.chats
+    WHERE chats.id = check_chat_id
+      AND (
+        chats.type = 'hub'
+        OR (
+          (
+            chats.created_by = check_user_id
+            OR EXISTS (
+              SELECT 1
+              FROM public.chat_members
+              WHERE chat_members.chat_id = chats.id
+                AND chat_members.user_id = check_user_id
+            )
+          )
+          AND private.can_access_event(chats.event_id, check_user_id)
+          AND EXISTS (
+            SELECT 1
+            FROM public.events
+            WHERE events.id = chats.event_id
+              AND COALESCE(events.end_date, events.event_date) >= CURRENT_DATE
+          )
+        )
+      )
+  );
+$$;
+REVOKE ALL ON FUNCTION private.can_access_chat(UUID, UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION private.can_access_chat(UUID, UUID) TO authenticated;
 
 -- ============================================
 -- POLICIES
@@ -202,6 +267,7 @@ DROP POLICY IF EXISTS "Authenticated users can view photos" ON photos;
 DROP POLICY IF EXISTS "Users can insert own photos" ON photos;
 DROP POLICY IF EXISTS "Users can update own photos" ON photos;
 DROP POLICY IF EXISTS "Users can delete own photos" ON photos;
+DROP POLICY IF EXISTS "Users can view permitted photos" ON photos;
 
 DROP POLICY IF EXISTS "Everyone can view events" ON events;
 DROP POLICY IF EXISTS "Everyone can insert events" ON events;
@@ -209,10 +275,14 @@ DROP POLICY IF EXISTS "Authenticated users can view events" ON events;
 DROP POLICY IF EXISTS "Users can insert own events" ON events;
 DROP POLICY IF EXISTS "Users can update own events" ON events;
 DROP POLICY IF EXISTS "Users can delete own events" ON events;
+DROP POLICY IF EXISTS "Users can view permitted events" ON events;
 
 DROP POLICY IF EXISTS "Authenticated users can view participants" ON event_participants;
 DROP POLICY IF EXISTS "Users can join events as self" ON event_participants;
 DROP POLICY IF EXISTS "Users can leave events as self" ON event_participants;
+DROP POLICY IF EXISTS "Users can view permitted participants" ON event_participants;
+DROP POLICY IF EXISTS "Event creators can add participants" ON event_participants;
+DROP POLICY IF EXISTS "Event creators can remove participants" ON event_participants;
 
 -- Profiles policies
 CREATE POLICY "Authenticated users can view profiles" ON profiles
@@ -224,26 +294,7 @@ CREATE POLICY "Users can update own profile" ON profiles
 
 -- Chat policies
 CREATE POLICY "Users can view available chats" ON chats
-  FOR SELECT TO authenticated USING (
-    type = 'hub'
-    OR (
-      (
-        created_by = auth.uid()
-        OR EXISTS (
-          SELECT 1
-          FROM chat_members
-          WHERE chat_members.chat_id = chats.id
-            AND chat_members.user_id = auth.uid()
-        )
-      )
-      AND EXISTS (
-        SELECT 1
-        FROM events
-        WHERE events.id = chats.event_id
-          AND COALESCE(events.end_date, events.event_date) >= CURRENT_DATE
-      )
-    )
-  );
+  FOR SELECT TO authenticated USING (private.can_access_chat(id, auth.uid()));
 
 CREATE POLICY "Users can create owned chats" ON chats
   FOR INSERT TO authenticated WITH CHECK (auth.uid() = created_by);
@@ -256,7 +307,7 @@ CREATE POLICY "Users can delete owned chats" ON chats
 
 -- Chat member policies
 CREATE POLICY "Users can view their chat memberships" ON chat_members
-  FOR SELECT TO authenticated USING (true);
+  FOR SELECT TO authenticated USING (private.can_access_chat(chat_id, auth.uid()));
 
 CREATE POLICY "Chat owners can add members" ON chat_members
   FOR INSERT TO authenticated WITH CHECK (
@@ -281,74 +332,39 @@ CREATE POLICY "Chat owners can remove members" ON chat_members
 
 -- Messages policies
 CREATE POLICY "Members can view chat messages" ON messages
-  FOR SELECT TO authenticated USING (
-    EXISTS (
-      SELECT 1
-      FROM chats
-      WHERE chats.id = messages.chat_id
-        AND (
-          chats.type = 'hub'
-          OR (
-            EXISTS (
-              SELECT 1
-              FROM chat_members
-              WHERE chat_members.chat_id = messages.chat_id
-                AND chat_members.user_id = auth.uid()
-            )
-            AND EXISTS (
-              SELECT 1
-              FROM events
-              WHERE events.id = chats.event_id
-                AND COALESCE(events.end_date, events.event_date) >= CURRENT_DATE
-            )
-          )
-        )
-    )
-  );
+  FOR SELECT TO authenticated USING (private.can_access_chat(chat_id, auth.uid()));
 
 CREATE POLICY "Members can insert chat messages" ON messages
   FOR INSERT TO authenticated WITH CHECK (
     auth.uid() = user_id
-    AND EXISTS (
-      SELECT 1
-      FROM chats
-      WHERE chats.id = messages.chat_id
-        AND (
-          chats.type = 'hub'
-          OR (
-            EXISTS (
-              SELECT 1
-              FROM chat_members
-              WHERE chat_members.chat_id = messages.chat_id
-                AND chat_members.user_id = auth.uid()
-            )
-            AND EXISTS (
-              SELECT 1
-              FROM events
-              WHERE events.id = chats.event_id
-                AND COALESCE(events.end_date, events.event_date) >= CURRENT_DATE
-            )
-          )
-        )
-    )
+    AND private.can_access_chat(chat_id, auth.uid())
   );
 
 CREATE POLICY "Users can delete own chat messages" ON messages
   FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 -- Photos policies
-CREATE POLICY "Authenticated users can view photos" ON photos
-  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Users can view permitted photos" ON photos
+  FOR SELECT TO authenticated USING (
+    event_id IS NULL
+    OR private.can_access_event(event_id, auth.uid())
+  );
 CREATE POLICY "Users can insert own photos" ON photos
-  FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+  FOR INSERT TO authenticated WITH CHECK (
+    auth.uid() = user_id
+    AND (
+      event_id IS NULL
+      OR private.can_access_event(event_id, auth.uid())
+    )
+  );
 CREATE POLICY "Users can update own photos" ON photos
   FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can delete own photos" ON photos
   FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 -- Events policies
-CREATE POLICY "Authenticated users can view events" ON events
-  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Users can view permitted events" ON events
+  FOR SELECT TO authenticated USING (private.can_access_event(id, auth.uid()));
 CREATE POLICY "Users can insert own events" ON events
   FOR INSERT TO authenticated WITH CHECK (auth.uid() = creator_id);
 CREATE POLICY "Users can update own events" ON events
@@ -357,12 +373,38 @@ CREATE POLICY "Users can delete own events" ON events
   FOR DELETE TO authenticated USING (auth.uid() = creator_id);
 
 -- Event participant policies
-CREATE POLICY "Authenticated users can view participants" ON event_participants
-  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Users can view permitted participants" ON event_participants
+  FOR SELECT TO authenticated USING (private.can_access_event(event_id, auth.uid()));
 CREATE POLICY "Users can join events as self" ON event_participants
-  FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+  FOR INSERT TO authenticated WITH CHECK (
+    auth.uid() = user_id
+    AND EXISTS (
+      SELECT 1
+      FROM events
+      WHERE events.id = event_participants.event_id
+        AND events.is_public = true
+    )
+  );
+CREATE POLICY "Event creators can add participants" ON event_participants
+  FOR INSERT TO authenticated WITH CHECK (
+    EXISTS (
+      SELECT 1
+      FROM events
+      WHERE events.id = event_participants.event_id
+        AND events.creator_id = auth.uid()
+    )
+  );
 CREATE POLICY "Users can leave events as self" ON event_participants
   FOR DELETE TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Event creators can remove participants" ON event_participants
+  FOR DELETE TO authenticated USING (
+    EXISTS (
+      SELECT 1
+      FROM events
+      WHERE events.id = event_participants.event_id
+        AND events.creator_id = auth.uid()
+    )
+  );
 
 -- ============================================
 -- STORAGE
