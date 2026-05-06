@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import Navbar from '@/components/Navbar'
 import { supabase } from '@/lib/supabase'
-import { requireCurrentUser } from '@/lib/auth'
+import { HUB_CHAT_ID, requireCurrentUser } from '@/lib/auth'
 
 export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -56,6 +56,7 @@ export default function Home() {
             nickname
           )
         `)
+        .eq('chat_id', HUB_CHAT_ID)
         .order('created_at', { ascending: false })
         .limit(5)
 

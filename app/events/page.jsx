@@ -2,20 +2,32 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { CalendarDays, MapPin, PartyPopper, Plus, Users } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import { supabase } from '@/lib/supabase'
-import { requireCurrentUser } from '@/lib/auth'
+import { createEventChat, requireCurrentUser } from '@/lib/auth'
+
+const emptyForm = {
+  title: '',
+  description: '',
+  start_date: '',
+  end_date: '',
+  location: '',
+  is_public: true,
+  is_multi_day: false,
+  costs: [],
+  create_chat: false,
+  chat_member_ids: [],
+}
 
 export default function EventsPage() {
   const [isLoaded, setIsLoaded] = useState(false)
   const [userId, setUserId] = useState(null)
   const [events, setEvents] = useState([])
+  const [profiles, setProfiles] = useState([])
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [editingEvent, setEditingEvent] = useState(null)
-  const [formData, setFormData] = useState({
-    title: '', description: '', start_date: '', end_date: '', location: '',
-    is_public: true, is_multi_day: false, costs: []
-  })
+  const [formData, setFormData] = useState(emptyForm)
 
   const router = useRouter()
 
@@ -35,12 +47,26 @@ export default function EventsPage() {
   useEffect(() => {
     if (!isLoaded || !userId) return
     loadEvents()
+    loadProfiles()
   }, [isLoaded, userId])
 
   const loadEvents = async () => {
     try {
       const { data } = await supabase.from('events').select('*').order('event_date', { ascending: true })
       if (data) setEvents(data)
+    } catch (error) {
+      console.error('Error:', error)
+    }
+  }
+
+  const loadProfiles = async () => {
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, display_name, nickname, email')
+        .order('display_name', { ascending: true })
+
+      if (data) setProfiles(data)
     } catch (error) {
       console.error('Error:', error)
     }
@@ -66,16 +92,32 @@ export default function EventsPage() {
         location: formData.location || '',
         is_public: formData.is_public,
       }
+
       if (formData.end_date) {
         eventData.end_date = formData.end_date
         eventData.is_multi_day = true
       }
-      const query = editingEvent
-        ? supabase.from('events').update(eventData).eq('id', editingEvent.id).eq('creator_id', userId)
-        : supabase.from('events').insert([eventData])
 
-      const { error } = await query
+      const query = editingEvent
+        ? supabase.from('events').update(eventData).eq('id', editingEvent.id).eq('creator_id', userId).select().single()
+        : supabase.from('events').insert([eventData]).select().single()
+
+      const { data: savedEvent, error } = await query
       if (error) throw error
+
+      if (!editingEvent && formData.create_chat && savedEvent) {
+        const chat = await createEventChat(
+          savedEvent.id,
+          savedEvent.title,
+          userId,
+          formData.chat_member_ids
+        )
+
+        if (!chat) {
+          alert('Event created, but the chat could not be created.')
+        }
+      }
+
       loadEvents()
       setShowCreateForm(false)
       resetForm()
@@ -111,49 +153,109 @@ export default function EventsPage() {
   }
 
   const resetForm = () => {
-    setFormData({ title: '', description: '', start_date: '', end_date: '', location: '', is_public: true, is_multi_day: false, costs: [] })
+    setFormData(emptyForm)
     setEditingEvent(null)
   }
 
-  if (!isLoaded) return <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white"><Navbar /><main className="container mx-auto px-4 py-8"><div className="text-center py-20">Loading...</div></main></div>
+  const closeForm = () => {
+    setShowCreateForm(false)
+    resetForm()
+  }
+
+  const toggleChatMember = (memberId) => {
+    setFormData(prev => ({
+      ...prev,
+      chat_member_ids: prev.chat_member_ids.includes(memberId)
+        ? prev.chat_member_ids.filter(id => id !== memberId)
+        : [...prev.chat_member_ids, memberId],
+    }))
+  }
+
+  const startEditing = (event) => {
+    setEditingEvent(event)
+    setFormData({
+      title: event.title,
+      description: event.description || '',
+      start_date: event.event_date,
+      end_date: event.end_date || '',
+      location: event.location || '',
+      is_public: event.is_public,
+      is_multi_day: !!event.end_date,
+      costs: event.costs || [],
+      create_chat: false,
+      chat_member_ids: [],
+    })
+    setShowCreateForm(true)
+  }
+
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+        <Navbar />
+        <main className="container mx-auto px-4 py-8">
+          <div className="text-center py-20">Loading...</div>
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <Navbar />
       <main className="container mx-auto px-4 py-8">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-800 mb-4">🎉 Events</h1>
+        <div className="mb-12 text-center">
+          <h1 className="mb-4 flex items-center justify-center gap-3 text-4xl font-bold text-gray-800">
+            <PartyPopper className="h-9 w-9 text-blue-600" />
+            Events
+          </h1>
           <p className="text-lg text-gray-600">Plan and manage your trips!</p>
         </div>
 
-        <div className="text-center mb-8">
-          <button onClick={() => setShowCreateForm(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg shadow-md">+ Create Event</button>
+        <div className="mb-8 text-center">
+          <button
+            onClick={() => {
+              resetForm()
+              setShowCreateForm(true)
+            }}
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-8 py-3 font-semibold text-white shadow-md hover:bg-blue-700"
+          >
+            <Plus className="h-5 w-5" />
+            Create Event
+          </button>
         </div>
 
-        <div className="max-w-4xl mx-auto space-y-4">
+        <div className="mx-auto max-w-4xl space-y-4">
           {events.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-md p-6 text-center">
+            <div className="rounded-lg bg-white p-6 text-center shadow-md">
               <p className="text-gray-500">No events yet</p>
             </div>
           ) : (
             events.map(event => {
-              const startDate = new Date(event.event_date)
-              const isPast = startDate < new Date().setHours(0,0,0,0)
+              const startDate = new Date(`${event.event_date}T00:00:00`)
+              const isPast = startDate < new Date().setHours(0, 0, 0, 0)
 
               return (
-                <div key={event.id} className={`bg-white border-l-4 rounded-lg shadow-md p-6 ${isPast ? 'border-gray-400 opacity-75' : 'border-blue-500'}`}>
-                  <div className="flex justify-between items-start">
+                <div key={event.id} className={`rounded-lg border-l-4 bg-white p-6 shadow-md ${isPast ? 'border-gray-400 opacity-75' : 'border-blue-500'}`}>
+                  <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h3 className="text-xl font-bold text-gray-900 mb-2">{event.title}</h3>
-                      <p className="text-sm text-gray-600">📅 {startDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
-                      {event.description && <p className="text-sm text-gray-700 mt-2">{event.description}</p>}
-                      {event.location && <p className="text-sm text-gray-600 mt-1">📍 {event.location}</p>}
+                      <h3 className="mb-2 text-xl font-bold text-gray-900">{event.title}</h3>
+                      <p className="flex items-center gap-2 text-sm text-gray-600">
+                        <CalendarDays className="h-4 w-4" />
+                        {startDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                      </p>
+                      {event.description && <p className="mt-2 text-sm text-gray-700">{event.description}</p>}
+                      {event.location && (
+                        <p className="mt-1 flex items-center gap-2 text-sm text-gray-600">
+                          <MapPin className="h-4 w-4" />
+                          {event.location}
+                        </p>
+                      )}
                     </div>
-                    <div className="flex flex-col gap-2 ml-4">
+                    <div className="ml-4 flex flex-col gap-2">
                       {event.creator_id === userId && (
                         <>
-                          <button onClick={() => { setEditingEvent(event); setFormData({ title: event.title, description: event.description || '', start_date: event.event_date, end_date: event.end_date || '', location: event.location || '', is_public: event.is_public, is_multi_day: !!event.end_date, costs: event.costs || [] }); setShowCreateForm(true); }} className="text-yellow-600 hover:text-yellow-700 text-sm font-medium">Edit</button>
-                          <button onClick={() => handleDeleteEvent(event.id)} className="text-red-600 hover:text-red-700 text-sm font-medium">Delete</button>
+                          <button onClick={() => startEditing(event)} className="text-sm font-medium text-yellow-600 hover:text-yellow-700">Edit</button>
+                          <button onClick={() => handleDeleteEvent(event.id)} className="text-sm font-medium text-red-600 hover:text-red-700">Delete</button>
                         </>
                       )}
                     </div>
@@ -166,36 +268,82 @@ export default function EventsPage() {
       </main>
 
       {showCreateForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => setShowCreateForm(false)}>
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={closeForm}>
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="mb-6 flex items-center justify-between">
               <h2 className="text-2xl font-bold text-gray-900">{editingEvent ? 'Edit Event' : 'Create Event'}</h2>
-              <button onClick={() => setShowCreateForm(false)} className="text-2xl">x</button>
+              <button onClick={closeForm} className="text-2xl">x</button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
-                <input type="text" value={formData.title} onChange={handleInputChange} name="title" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" required />
+                <label className="mb-1 block text-sm font-medium text-gray-700">Title *</label>
+                <input type="text" value={formData.title} onChange={handleInputChange} name="title" className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500" required />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea value={formData.description} onChange={handleInputChange} name="description" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" rows="3" />
+                <label className="mb-1 block text-sm font-medium text-gray-700">Description</label>
+                <textarea value={formData.description} onChange={handleInputChange} name="description" className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500" rows="3" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Start Date *</label>
-                <input type="date" value={formData.start_date} onChange={handleInputChange} name="start_date" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" required />
+                <label className="mb-1 block text-sm font-medium text-gray-700">Start Date *</label>
+                <input type="date" value={formData.start_date} onChange={handleInputChange} name="start_date" className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500" required />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                <input type="date" value={formData.end_date} onChange={handleInputChange} name="end_date" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                <label className="mb-1 block text-sm font-medium text-gray-700">End Date</label>
+                <input type="date" value={formData.end_date} onChange={handleInputChange} name="end_date" className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500" />
               </div>
               <div className="flex items-center">
                 <input type="checkbox" id="multi_day" checked={formData.is_multi_day} onChange={(e) => setFormData(prev => ({ ...prev, is_multi_day: e.target.checked, end_date: e.target.checked ? prev.end_date || prev.start_date : '' }))} className="mr-2" />
                 <label htmlFor="multi_day" className="text-sm">Multi-day event</label>
               </div>
-              <div className="flex gap-3 mt-6">
-                <button onClick={handleSaveEvent} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg">Save</button>
-                <button onClick={() => { setShowCreateForm(false); resetForm(); }} className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg">Cancel</button>
+
+              {!editingEvent && (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-800">
+                    <input
+                      type="checkbox"
+                      checked={formData.create_chat}
+                      onChange={(e) => setFormData(prev => ({ ...prev, create_chat: e.target.checked }))}
+                    />
+                    Create a dedicated event chat
+                  </label>
+                  <p className="mt-1 text-xs text-gray-500">
+                    The chat appears under Messages &gt; Events for selected members and disappears after the event date has passed.
+                  </p>
+
+                  {formData.create_chat && (
+                    <div className="mt-4">
+                      <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-800">
+                        <Users className="h-4 w-4" />
+                        Members
+                      </div>
+                      <div className="max-h-44 space-y-2 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2">
+                        {profiles.filter(profile => profile.id !== userId).length === 0 ? (
+                          <p className="px-2 py-3 text-sm text-gray-500">No other profiles found yet.</p>
+                        ) : (
+                          profiles.filter(profile => profile.id !== userId).map(profile => {
+                            const label = profile.display_name || profile.nickname || profile.email || 'Friend'
+                            return (
+                              <label key={profile.id} className="flex items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-slate-50">
+                                <input
+                                  type="checkbox"
+                                  checked={formData.chat_member_ids.includes(profile.id)}
+                                  onChange={() => toggleChatMember(profile.id)}
+                                />
+                                <span className="min-w-0 flex-1 truncate">{label}</span>
+                              </label>
+                            )
+                          })
+                        )}
+                      </div>
+                      <p className="mt-2 text-xs text-gray-500">You are included automatically.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="mt-6 flex gap-3">
+                <button onClick={handleSaveEvent} className="flex-1 rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700">Save</button>
+                <button onClick={closeForm} className="flex-1 rounded-lg bg-gray-600 px-4 py-2 font-semibold text-white hover:bg-gray-700">Cancel</button>
               </div>
             </div>
           </div>

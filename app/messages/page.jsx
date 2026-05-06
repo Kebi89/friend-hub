@@ -1,20 +1,54 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Send, Trash2 } from 'lucide-react'
+import { CalendarDays, MessageCircle, Send, Trash2 } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import { supabase } from '@/lib/supabase'
-import { getAllMessages, saveMessage, deleteMessage, requireCurrentUser } from '@/lib/auth'
+import {
+  HUB_CHAT_ID,
+  deleteMessage,
+  getMessagesForChat,
+  getUserProfile,
+  getVisibleChats,
+  requireCurrentUser,
+  saveMessage,
+} from '@/lib/auth'
 
 export default function MessagesPage() {
   const [messages, setMessages] = useState([])
+  const [chats, setChats] = useState([])
+  const [activeTab, setActiveTab] = useState('hub')
+  const [selectedChatId, setSelectedChatId] = useState(HUB_CHAT_ID)
   const [newMessage, setNewMessage] = useState('')
   const [isLoaded, setIsLoaded] = useState(false)
   const [username, setUsername] = useState(null)
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [userId, setUserId] = useState(null)
   const router = useRouter()
+
+  const hubChats = chats.filter((chat) => chat.type === 'hub')
+  const eventChats = chats.filter((chat) => chat.type === 'event')
+  const visibleChats = activeTab === 'events' ? eventChats : hubChats
+  const selectedChat = visibleChats.find((chat) => chat.id === selectedChatId) || visibleChats[0]
+
+  const loadChats = useCallback(async (currentUserId) => {
+    const visible = await getVisibleChats(currentUserId)
+    setChats(visible)
+
+    const hasSelected = visible.some((chat) => chat.id === selectedChatId)
+    if (!hasSelected) {
+      const nextChat = visible.find((chat) => chat.type === activeTab) || visible[0]
+      setSelectedChatId(nextChat?.id || HUB_CHAT_ID)
+      if (nextChat?.type) setActiveTab(nextChat.type === 'event' ? 'events' : 'hub')
+    }
+  }, [activeTab, selectedChatId])
+
+  const loadMessages = useCallback(async (chatId = selectedChatId) => {
+    if (!chatId) return
+    const msgs = await getMessagesForChat(chatId)
+    setMessages(msgs)
+  }, [selectedChatId])
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -32,50 +66,73 @@ export default function MessagesPage() {
         setUsername(userProfile.display_name || userProfile.nickname || 'Anonymous')
       }
 
+      await loadChats(currentUser.id)
       setCheckingAuth(false)
       setIsLoaded(true)
     }
 
     checkAuth()
-  }, [router])
+  }, [loadChats, router])
 
   useEffect(() => {
-    if (!isLoaded || !userId) return
+    if (!isLoaded || !userId || !selectedChatId) return
 
-    loadMessages()
+    loadMessages(selectedChatId)
 
     const messagesChannel = supabase
-      .channel('messages')
+      .channel(`messages-${selectedChatId}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'messages',
-      }, loadMessages)
+        filter: `chat_id=eq.${selectedChatId}`,
+      }, () => loadMessages(selectedChatId))
+      .subscribe()
+
+    const chatsChannel = supabase
+      .channel(`chats-${userId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'chats',
+      }, () => loadChats(userId))
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'chat_members',
+      }, () => loadChats(userId))
       .subscribe()
 
     return () => {
       supabase.removeChannel(messagesChannel)
+      supabase.removeChannel(chatsChannel)
     }
-  }, [isLoaded, userId])
+  }, [isLoaded, loadChats, loadMessages, selectedChatId, userId])
 
-  const loadMessages = async () => {
-    const msgs = await getAllMessages()
-    setMessages(msgs)
+  const handleTabChange = (tab) => {
+    setActiveTab(tab)
+    const nextChat = chats.find((chat) => tab === 'events' ? chat.type === 'event' : chat.type === 'hub')
+    setSelectedChatId(nextChat?.id || HUB_CHAT_ID)
+    setNewMessage('')
+  }
+
+  const handleChatSelect = (chatId) => {
+    setSelectedChatId(chatId)
+    setNewMessage('')
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    if (!newMessage.trim() || !userId) {
+    if (!newMessage.trim() || !userId || !selectedChatId) {
       return
     }
 
-    const result = await saveMessage(userId, newMessage.trim())
+    const result = await saveMessage(userId, newMessage.trim(), selectedChatId)
 
     if (result) {
       setNewMessage('')
-      const msgs = await getAllMessages()
-      setMessages(msgs)
+      loadMessages(selectedChatId)
     } else {
       alert('Failed to send message')
     }
@@ -84,10 +141,7 @@ export default function MessagesPage() {
   const handleDelete = async (id) => {
     if (window.confirm('Delete this message?')) {
       const success = await deleteMessage(id)
-      if (success) {
-        const msgs = await getAllMessages()
-        setMessages(msgs)
-      }
+      if (success) loadMessages(selectedChatId)
     }
   }
 
@@ -106,6 +160,12 @@ export default function MessagesPage() {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
+  const formatEventDate = (chat) => {
+    if (!chat?.eventDate) return 'Event chat'
+    const start = new Date(`${chat.eventDate}T00:00:00`)
+    return start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  }
+
   const getInitials = (name) => {
     if (!name || name === 'Anonymous') return '?'
     return name
@@ -114,17 +174,6 @@ export default function MessagesPage() {
       .join('')
       .slice(0, 2)
       .toUpperCase()
-  }
-
-  async function getUserProfile(uId) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', uId)
-      .single()
-
-    if (error) return null
-    return data
   }
 
   if (checkingAuth) {
@@ -144,26 +193,83 @@ export default function MessagesPage() {
     <div className="min-h-screen bg-slate-100">
       <Navbar />
 
-      <main className="mx-auto flex h-[calc(100vh-4rem)] max-w-5xl flex-col px-3 py-4 sm:px-6">
+      <main className="mx-auto flex h-[calc(100vh-4rem)] max-w-6xl flex-col px-3 py-4 sm:px-6">
         <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
-            <div>
-              <h1 className="text-xl font-semibold text-slate-950 sm:text-2xl">Friends Chat</h1>
-              <p className="mt-1 text-sm text-slate-500">
-                {messages.length} message{messages.length !== 1 ? 's' : ''} · Signed in as {username || 'Friend'}
-              </p>
+          <div className="border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h1 className="text-xl font-semibold text-slate-950 sm:text-2xl">Friends Chat</h1>
+                <p className="mt-1 text-sm text-slate-500">
+                  {selectedChat?.title || 'Hub'} chat - Signed in as {username || 'Friend'}
+                </p>
+              </div>
+              <div className="hidden h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white sm:flex">
+                {getInitials(username)}
+              </div>
             </div>
-            <div className="hidden h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white sm:flex">
-              {getInitials(username)}
+
+            <div className="mt-4 flex rounded-lg border border-slate-200 bg-slate-50 p-1">
+              <button
+                type="button"
+                onClick={() => handleTabChange('hub')}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition ${
+                  activeTab === 'hub' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <MessageCircle className="h-4 w-4" />
+                Hub
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTabChange('events')}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition ${
+                  activeTab === 'events' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <CalendarDays className="h-4 w-4" />
+                Events
+              </button>
             </div>
+
+            {visibleChats.length > 0 && (
+              <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                {visibleChats.map((chat) => (
+                  <button
+                    key={chat.id}
+                    type="button"
+                    onClick={() => handleChatSelect(chat.id)}
+                    className={`shrink-0 rounded-lg border px-3 py-2 text-left text-sm transition ${
+                      selectedChatId === chat.id
+                        ? 'border-blue-500 bg-blue-50 text-blue-900'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                    }`}
+                  >
+                    <span className="block max-w-48 truncate font-medium">{chat.title}</span>
+                    <span className="block text-xs text-slate-500">
+                      {chat.type === 'event' ? formatEventDate(chat) : 'Pinned main chat'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 px-3 py-5 sm:px-6">
-            {messages.length === 0 ? (
+            {activeTab === 'events' && eventChats.length === 0 ? (
               <div className="flex h-full items-center justify-center text-center">
                 <div>
-                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-white text-2xl shadow-sm">
-                    💬
+                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-sm">
+                    <CalendarDays className="h-7 w-7 text-slate-500" />
+                  </div>
+                  <p className="text-lg font-semibold text-slate-900">No active event chats</p>
+                  <p className="mt-1 text-sm text-slate-500">Create one from an event and invite only the people who need it.</p>
+                </div>
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-center">
+                <div>
+                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-sm">
+                    <MessageCircle className="h-7 w-7 text-slate-500" />
                   </div>
                   <p className="text-lg font-semibold text-slate-900">No messages yet</p>
                   <p className="mt-1 text-sm text-slate-500">Start the conversation with your friends.</p>
@@ -238,16 +344,16 @@ export default function MessagesPage() {
                       e.currentTarget.form?.requestSubmit()
                     }
                   }}
-                  placeholder="Message your friends..."
+                  placeholder={selectedChat ? `Message ${selectedChat.title}...` : 'Message your friends...'}
                   rows="1"
                   className="max-h-32 min-h-11 w-full resize-none rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   required
-                  disabled={!userId}
+                  disabled={!userId || !selectedChat}
                 />
               </div>
               <button
                 type="submit"
-                disabled={!userId || !newMessage.trim()}
+                disabled={!userId || !selectedChat || !newMessage.trim()}
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="Send message"
               >
