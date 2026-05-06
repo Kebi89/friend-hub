@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { Send, Trash2 } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import { supabase } from '@/lib/supabase'
 import { getAllMessages, saveMessage, deleteMessage, requireCurrentUser } from '@/lib/auth'
@@ -12,10 +13,9 @@ export default function MessagesPage() {
   const [isLoaded, setIsLoaded] = useState(false)
   const [username, setUsername] = useState(null)
   const [checkingAuth, setCheckingAuth] = useState(true)
-  const router = useRouter()
   const [userId, setUserId] = useState(null)
+  const router = useRouter()
 
-  // Check authentication
   useEffect(() => {
     const checkAuth = async () => {
       const currentUser = await requireCurrentUser()
@@ -25,10 +25,9 @@ export default function MessagesPage() {
         return
       }
 
-      const currentUserId = currentUser.id
-      setUserId(currentUserId)
+      setUserId(currentUser.id)
 
-      const userProfile = await getUserProfile(currentUserId)
+      const userProfile = await getUserProfile(currentUser.id)
       if (userProfile) {
         setUsername(userProfile.display_name || userProfile.nickname || 'Anonymous')
       }
@@ -40,19 +39,17 @@ export default function MessagesPage() {
     checkAuth()
   }, [router])
 
-  // Load messages from Supabase
   useEffect(() => {
     if (!isLoaded || !userId) return
 
     loadMessages()
-    
-    // Set up real-time subscription for messages
+
     const messagesChannel = supabase
       .channel('messages')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'messages' 
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'messages',
       }, loadMessages)
       .subscribe()
 
@@ -68,21 +65,19 @@ export default function MessagesPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!newMessage.trim() || !userId) {
-      alert('Please enter a message!')
       return
     }
 
     const result = await saveMessage(userId, newMessage.trim())
-    
+
     if (result) {
       setNewMessage('')
-      // Reload messages
       const msgs = await getAllMessages()
       setMessages(msgs)
     } else {
-      alert('Failed to post message')
+      alert('Failed to send message')
     }
   }
 
@@ -90,7 +85,6 @@ export default function MessagesPage() {
     if (window.confirm('Delete this message?')) {
       const success = await deleteMessage(id)
       if (success) {
-        // Reload messages
         const msgs = await getAllMessages()
         setMessages(msgs)
       }
@@ -112,7 +106,16 @@ export default function MessagesPage() {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
-  // Get user profile
+  const getInitials = (name) => {
+    if (!name || name === 'Anonymous') return '?'
+    return name
+      .split(' ')
+      .map((part) => part[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase()
+  }
+
   async function getUserProfile(uId) {
     const { data, error } = await supabase
       .from('profiles')
@@ -126,11 +129,11 @@ export default function MessagesPage() {
 
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      <div className="min-h-screen bg-slate-100">
         <Navbar />
         <main className="container mx-auto px-4 py-8">
           <div className="text-center py-20">
-            <div className="animate-pulse text-lg text-gray-500">Loading...</div>
+            <div className="animate-pulse text-lg text-slate-500">Loading chat...</div>
           </div>
         </main>
       </div>
@@ -138,142 +141,121 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen bg-slate-100">
       <Navbar />
-      
-      <main className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-800 mb-4">💬 Message Board</h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Share your memories with your friends!
-          </p>
-        </div>
 
-        <div className="max-w-4xl mx-auto">
-          {/* Message Form */}
-          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">Post a Message</h2>
-            <form onSubmit={handleSubmit}>
-              <div className="mb-4">
-                <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
-                  Your Message
-                </label>
-                <textarea
-                  id="message"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Write something amazing..."
-                  rows="4"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-y"
-                  required
-                  disabled={!userId}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={!userId || !newMessage.trim()}
-                className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Post Message
-              </button>
-            </form>
+      <main className="mx-auto flex h-[calc(100vh-4rem)] max-w-5xl flex-col px-3 py-4 sm:px-6">
+        <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
+            <div>
+              <h1 className="text-xl font-semibold text-slate-950 sm:text-2xl">Friends Chat</h1>
+              <p className="mt-1 text-sm text-slate-500">
+                {messages.length} message{messages.length !== 1 ? 's' : ''} · Signed in as {username || 'Friend'}
+              </p>
+            </div>
+            <div className="hidden h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white sm:flex">
+              {getInitials(username)}
+            </div>
           </div>
 
-          {/* Messages List */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-gray-800">
-                Recent Messages <span className="text-sm text-gray-500">({messages.length})</span>
-              </h2>
-              {messages.length > 0 && (
-                <button
-                  onClick={() => {
-                    if (window.confirm('Clear all messages?')) {
-                      // Note: In production, you'd need admin permissions for this
-                      setMessages([])
-                    }
-                  }}
-                  className="text-sm text-red-600 hover:text-red-700 font-medium"
-                >
-                  Clear All
-                </button>
-              )}
-            </div>
-
+          <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 px-3 py-5 sm:px-6">
             {messages.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-6xl mb-4">📭</div>
-                <p className="text-gray-500 text-lg font-medium">No messages yet!</p>
-                <p className="text-gray-400">Be the first to share something awesome!</p>
+              <div className="flex h-full items-center justify-center text-center">
+                <div>
+                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-white text-2xl shadow-sm">
+                    💬
+                  </div>
+                  <p className="text-lg font-semibold text-slate-900">No messages yet</p>
+                  <p className="mt-1 text-sm text-slate-500">Start the conversation with your friends.</p>
+                </div>
               </div>
             ) : (
-              <div className="space-y-4 max-h-[600px] overflow-y-auto">
-                {messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className="border-l-4 border-blue-500 pl-4 py-3 bg-blue-50 rounded-r-lg hover:bg-blue-100 transition-colors"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                        <span className="font-semibold text-gray-900">
-                          {msg.user === 'Anonymous' ? 'Anonymous Friend' : msg.user}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm text-gray-500 whitespace-nowrap">
-                          {formatTime(msg.timestamp)}
-                        </span>
-                        <button
-                          onClick={() => handleDelete(msg.id)}
-                          className="text-gray-400 hover:text-red-600 transition-colors p-1"
-                          title="Delete message"
+              <div className="flex flex-col-reverse gap-4">
+                {messages.map((msg) => {
+                  const senderName = msg.user === 'Anonymous' ? 'Anonymous Friend' : msg.user
+                  const isMine = senderName === username
+
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}
+                    >
+                      {!isMine && (
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-700 text-xs font-semibold text-white">
+                          {getInitials(senderName)}
+                        </div>
+                      )}
+
+                      <div className={`group max-w-[78%] sm:max-w-[68%] ${isMine ? 'items-end' : 'items-start'}`}>
+                        <div className={`mb-1 flex items-center gap-2 text-xs ${isMine ? 'justify-end text-slate-500' : 'text-slate-500'}`}>
+                          <span className="font-medium">{senderName}</span>
+                          <span>{formatTime(msg.timestamp)}</span>
+                        </div>
+                        <div
+                          className={`rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
+                            isMine
+                              ? 'rounded-br-md bg-blue-600 text-white'
+                              : 'rounded-bl-md border border-slate-200 bg-white text-slate-800'
+                          }`}
                         >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
+                          <p className="whitespace-pre-wrap break-words">{msg.text}</p>
+                        </div>
+                        <div className={`mt-1 flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                          <button
+                            onClick={() => handleDelete(msg.id)}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-400 opacity-0 transition hover:bg-red-50 hover:text-red-600 group-hover:opacity-100 focus:opacity-100"
+                            title="Delete message"
+                            aria-label="Delete message"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
+
+                      {isMine && (
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white">
+                          {getInitials(username)}
+                        </div>
+                      )}
                     </div>
-                    <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{msg.text}</p>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
 
-          {/* User Info */}
-          <div className="bg-blue-50 rounded-lg p-4 mb-6">
-            <h3 className="font-semibold text-blue-900 mb-3">Current User</h3>
-            <div className="space-y-2 text-sm text-blue-800">
-              <div className="flex justify-between">
-                <span>Name:</span>
-                <span className="font-semibold">{username || 'Not set (check profile)'}</span>
+          <form onSubmit={handleSubmit} className="border-t border-slate-200 bg-white p-3 sm:p-4">
+            <div className="flex items-end gap-2">
+              <div className="min-w-0 flex-1">
+                <label htmlFor="message" className="sr-only">Message</label>
+                <textarea
+                  id="message"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      e.currentTarget.form?.requestSubmit()
+                    }
+                  }}
+                  placeholder="Message your friends..."
+                  rows="1"
+                  className="max-h-32 min-h-11 w-full resize-none rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  required
+                  disabled={!userId}
+                />
               </div>
-              <div className="flex justify-between">
-                <span>Status:</span>
-                <span className="font-semibold text-green-600">✓ Logged in</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Storage:</span>
-                <span className="font-semibold text-blue-600">Supabase Cloud Database</span>
-              </div>
+              <button
+                type="submit"
+                disabled={!userId || !newMessage.trim()}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Send message"
+              >
+                <Send className="h-5 w-5" />
+              </button>
             </div>
-          </div>
-
-          {/* Tips */}
-          <div className="mt-8 bg-blue-50 border-l-4 border-blue-600 p-4 rounded-r-lg">
-            <h3 className="font-semibold text-blue-900 mb-2">💡 Tips:</h3>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Messages are stored in Supabase cloud database</li>
-              <li>• All messages are shared with your friends</li>
-              <li>• Real-time sync across all devices</li>
-              <li>• Your username is automatically added to all messages</li>
-            </ul>
-          </div>
-        </div>
+          </form>
+        </section>
       </main>
     </div>
   )
