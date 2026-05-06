@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import { supabase } from '@/lib/supabase'
-import { isUserLoggedIn, getCurrentUserId } from '@/lib/auth'
+import { requireCurrentUser } from '@/lib/auth'
 
 export default function GalleryPage() {
   const [photos, setPhotos] = useState([])
@@ -16,14 +16,13 @@ export default function GalleryPage() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const isLogged = localStorage.getItem('authenticatedUser') === 'true'
-      if (!isLogged) {
+      const currentUser = await requireCurrentUser()
+      if (!currentUser) {
         router.push('/auth')
         return
       }
 
-      const currentUserId = await getCurrentUserId()
-      setUserId(currentUserId)
+      setUserId(currentUser.id)
       setIsLoaded(true)
     }
 
@@ -47,7 +46,7 @@ export default function GalleryPage() {
   }, [isLoaded, userId])
 
   const loadPhotos = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('photos')
       .select(`
         *,
@@ -62,13 +61,13 @@ export default function GalleryPage() {
     if (data) {
       const loadedPhotos = await Promise.all(
         data.map(async (photo) => {
-          const { data: publicUrlData } = await supabase.storage
+          const { data: signedUrlData } = await supabase.storage
             .from('photos')
-            .getPublicUrl(photo.url)
+            .createSignedUrl(photo.url, 60 * 60)
 
           return {
             ...photo,
-            publicUrl: publicUrlData.publicUrl,
+            publicUrl: signedUrlData?.signedUrl || '',
             displayName: photo.profiles?.display_name || photo.profiles?.nickname || 'Anonymous',
           }
         })
@@ -84,6 +83,11 @@ export default function GalleryPage() {
       return
     }
 
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file!')
+      return
+    }
+
     if (file.size > 10 * 1024 * 1024) {
       alert('File size exceeds 10MB limit!')
       return
@@ -94,8 +98,8 @@ export default function GalleryPage() {
     try {
       // Create unique filename
       const fileExt = file.name.split('.').pop()
-      const fileName = `${userId}/${Date.now()}.${fileExt}`
-      const filePath = `${userId}/${fileName}`
+      const safeExt = fileExt ? fileExt.toLowerCase().replace(/[^a-z0-9]/g, '') : 'jpg'
+      const filePath = `${userId}/${Date.now()}.${safeExt}`
 
       // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
@@ -103,11 +107,6 @@ export default function GalleryPage() {
         .upload(filePath, file)
 
       if (uploadError) throw uploadError
-
-      // Get public URL
-      const { data: publicUrlData } = await supabase.storage
-        .from('photos')
-        .getPublicUrl(filePath)
 
       // Save metadata to database
       const { error: dbError } = await supabase

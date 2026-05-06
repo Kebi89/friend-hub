@@ -74,27 +74,80 @@ ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE photos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE event_participants ENABLE ROW LEVEL SECURITY;
 
 -- ============================================
 -- POLICIES
 -- ============================================
 
--- Profiles tables
-CREATE POLICY "Everyone can view profiles" ON profiles FOR SELECT USING (true);
-CREATE POLICY "Users can insert own profile" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
-CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Everyone can view profiles" ON profiles;
+DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
+DROP POLICY IF EXISTS "Authenticated users can view profiles" ON profiles;
+DROP POLICY IF EXISTS "Everyone can view messages" ON messages;
+DROP POLICY IF EXISTS "Everyone can insert messages" ON messages;
+DROP POLICY IF EXISTS "Authenticated users can view messages" ON messages;
+DROP POLICY IF EXISTS "Users can insert own messages" ON messages;
+DROP POLICY IF EXISTS "Everyone can view photos" ON photos;
+DROP POLICY IF EXISTS "Everyone can insert photos" ON photos;
+DROP POLICY IF EXISTS "Authenticated users can view photos" ON photos;
+DROP POLICY IF EXISTS "Users can insert own photos" ON photos;
+DROP POLICY IF EXISTS "Everyone can view events" ON events;
+DROP POLICY IF EXISTS "Everyone can insert events" ON events;
+DROP POLICY IF EXISTS "Authenticated users can view events" ON events;
+DROP POLICY IF EXISTS "Users can insert own events" ON events;
+DROP POLICY IF EXISTS "Users can delete own messages" ON messages;
+DROP POLICY IF EXISTS "Users can update own photos" ON photos;
+DROP POLICY IF EXISTS "Users can delete own photos" ON photos;
+DROP POLICY IF EXISTS "Users can update own events" ON events;
+DROP POLICY IF EXISTS "Users can delete own events" ON events;
+DROP POLICY IF EXISTS "Authenticated users can view participants" ON event_participants;
+DROP POLICY IF EXISTS "Users can join events as self" ON event_participants;
+DROP POLICY IF EXISTS "Users can leave events as self" ON event_participants;
+
+-- Profiles policies
+CREATE POLICY "Authenticated users can view profiles" ON profiles
+  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Users can insert own profile" ON profiles
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users can update own profile" ON profiles
+  FOR UPDATE TO authenticated USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 
 -- Messages policies
-CREATE POLICY "Everyone can view messages" ON messages FOR SELECT USING (true);
-CREATE POLICY "Everyone can insert messages" ON messages FOR INSERT WITH CHECK (true);
+CREATE POLICY "Authenticated users can view messages" ON messages
+  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Users can insert own messages" ON messages
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete own messages" ON messages
+  FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 -- Photos policies
-CREATE POLICY "Everyone can view photos" ON photos FOR SELECT USING (true);
-CREATE POLICY "Everyone can insert photos" ON photos FOR INSERT WITH CHECK (true);
+CREATE POLICY "Authenticated users can view photos" ON photos
+  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Users can insert own photos" ON photos
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own photos" ON photos
+  FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete own photos" ON photos
+  FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 -- Events policies
-CREATE POLICY "Everyone can view events" ON events FOR SELECT USING (true);
-CREATE POLICY "Everyone can insert events" ON events FOR INSERT WITH CHECK (true);
+CREATE POLICY "Authenticated users can view events" ON events
+  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Users can insert own events" ON events
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = creator_id);
+CREATE POLICY "Users can update own events" ON events
+  FOR UPDATE TO authenticated USING (auth.uid() = creator_id) WITH CHECK (auth.uid() = creator_id);
+CREATE POLICY "Users can delete own events" ON events
+  FOR DELETE TO authenticated USING (auth.uid() = creator_id);
+
+-- Event participant policies
+CREATE POLICY "Authenticated users can view participants" ON event_participants
+  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Users can join events as self" ON event_participants
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can leave events as self" ON event_participants
+  FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 -- ============================================
 -- STORAGE
@@ -102,14 +155,27 @@ CREATE POLICY "Everyone can insert events" ON events FOR INSERT WITH CHECK (true
 
 -- Create storage bucket for photos
 INSERT INTO storage.buckets (id, name, public) 
-VALUES ('photos', 'photos', true)
+VALUES ('photos', 'photos', false)
 ON CONFLICT (id) DO NOTHING;
+UPDATE storage.buckets SET public = false WHERE id = 'photos';
 
--- Allow anyone to read/insert photos
-CREATE POLICY "Anyone can upload photos" ON storage.objects FOR INSERT
-WITH CHECK (bucket_id = 'photos');
-CREATE POLICY "Anyone can read photos" ON storage.objects FOR SELECT
+DROP POLICY IF EXISTS "Anyone can upload photos" ON storage.objects;
+DROP POLICY IF EXISTS "Anyone can read photos" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can read photos" ON storage.objects;
+DROP POLICY IF EXISTS "Users can upload photos to own folder" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update own photos" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete own photos" ON storage.objects;
+
+-- Allow authenticated users to read photos and write only inside their user-id folder.
+CREATE POLICY "Authenticated users can read photos" ON storage.objects FOR SELECT TO authenticated
 USING (bucket_id = 'photos');
+CREATE POLICY "Users can upload photos to own folder" ON storage.objects FOR INSERT TO authenticated
+WITH CHECK (bucket_id = 'photos' AND (storage.foldername(name))[1] = auth.uid()::text);
+CREATE POLICY "Users can update own photos" ON storage.objects FOR UPDATE TO authenticated
+USING (bucket_id = 'photos' AND (storage.foldername(name))[1] = auth.uid()::text)
+WITH CHECK (bucket_id = 'photos' AND (storage.foldername(name))[1] = auth.uid()::text);
+CREATE POLICY "Users can delete own photos" ON storage.objects FOR DELETE TO authenticated
+USING (bucket_id = 'photos' AND (storage.foldername(name))[1] = auth.uid()::text);
 
 
 -- Add end_date column to events table if not exists

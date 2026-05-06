@@ -1,35 +1,41 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
+import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
+import { requireCurrentUser } from '@/lib/auth'
+
+function formatDateInput(date) {
+  return date.toISOString().split('T')[0]
+}
 
 export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [events, setEvents] = useState([])
   const [allProfiles, setAllProfiles] = useState([])
   const [isLoaded, setIsLoaded] = useState(false)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [selectedDate, setSelectedDate] = useState(null)
   const [selectedDates, setSelectedDates] = useState({ start: null, end: null })
+  const [modalDates, setModalDates] = useState({ start: null, end: null })
   const [isRangeMode, setIsRangeMode] = useState(false)
+  const [userId, setUserId] = useState(null)
   const router = useRouter()
 
   useEffect(() => {
-    const checkAuth = () => {
-      return localStorage.getItem('authenticatedUser') === 'true'
+    const checkAuth = async () => {
+      const currentUser = await requireCurrentUser()
+      if (!currentUser) {
+        router.push('/auth')
+        return
+      }
+      setUserId(currentUser.id)
+      setIsLoaded(true)
     }
 
-    setIsAuthenticated(checkAuth())
-
-    if (!checkAuth()) {
-      router.push('/auth')
-      return
-    }
-
-    setIsLoaded(true)
+    checkAuth()
   }, [router])
 
   useEffect(() => {
@@ -125,7 +131,6 @@ export default function CalendarPage() {
       // Start selection
       setIsRangeMode(true)
       setSelectedDates({ start: newStartDate, end: newStartDate })
-      setSelectedDate(newStartDate)
     } else if (selectedDates.start && newStartDate >= selectedDates.start) {
       // End selection or reset if same day
       if (newStartDate.getTime() === selectedDates.start.getTime()) {
@@ -143,31 +148,20 @@ export default function CalendarPage() {
     } else {
       // Reset to new start
       setSelectedDates({ start: newStartDate, end: newStartDate })
-      setSelectedDate(newStartDate)
     }
   }
 
   const openCreateModal = (startDate = selectedDates.start, endDate = selectedDates.end) => {
     setShowCreateModal(true)
-    setModalEventData({
-      title: '',
-      description: '',
-      startDate: startDate ? formatDate(startDate) : '',
-      endDate: endDate ? formatDate(endDate) : (startDate ? formatDate(startDate) : ''),
-      location: '',
-      is_multi_day: endDate ? true : false,
-    })
+    setModalDates({ start: startDate, end: endDate || null })
   }
 
   const formatDate = (date) => {
-    return date.toISOString().split('T')[0]
+    return formatDateInput(date)
   }
 
   const handleCreateEvent = async (eventData) => {
     try {
-      const startDate = new Date(eventData.startDate)
-      const endDate = eventData.is_multi_day ? new Date(eventData.endDate) : null
-
       await supabase.from('events').insert([{
         creator_id: eventData.creator_id,
         title: eventData.title,
@@ -289,8 +283,9 @@ export default function CalendarPage() {
           <CreateEventModal
             onClose={() => setShowCreateModal(false)}
             onCreate={handleCreateEvent}
-            defaultStartDate={selectedDates.start}
-            defaultEndDate={selectedDates.end}
+            defaultStartDate={modalDates.start}
+            defaultEndDate={modalDates.end}
+            userId={userId}
           />
         )}
 
@@ -320,7 +315,7 @@ export default function CalendarPage() {
 
         {eventsThisMonth.length > 0 && (
           <div className="max-w-4xl mx-auto mt-8">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">📅 This Month's Events</h3>
+            <h3 className="text-xl font-semibold text-gray-800 mb-4">📅 This Month&apos;s Events</h3>
             <div className="grid grid-cols-1 gap-4">
               {eventsThisMonth.map(event => {
                 const eventDate = new Date(event.event_date)
@@ -345,20 +340,16 @@ export default function CalendarPage() {
 }
 
 // Create Event Modal Component
-function CreateEventModal({ onClose, onCreate, defaultStartDate, defaultEndDate }) {
+function CreateEventModal({ onClose, onCreate, defaultStartDate, defaultEndDate, userId }) {
   const [formData, setFormData] = useState({
-    creator_id: localStorage.getItem('authenticatedUser') ? 'self' : null,
+    creator_id: userId,
     title: '',
     description: '',
-    startDate: defaultStartDate ? formatDate(defaultStartDate) : '',
-    endDate: defaultEndDate ? formatDate(defaultEndDate) : '',
+    startDate: defaultStartDate ? formatDateInput(defaultStartDate) : '',
+    endDate: defaultEndDate ? formatDateInput(defaultEndDate) : '',
     location: '',
     is_multi_day: defaultEndDate ? true : false,
   })
-
-  const formatDate = (date) => {
-    return date.toISOString().split('T')[0]
-  }
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target
@@ -370,8 +361,7 @@ function CreateEventModal({ onClose, onCreate, defaultStartDate, defaultEndDate 
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    const userToken = localStorage.getItem('currentUserToken')
-    if (!userToken) {
+    if (!userId) {
       alert('Please log in first')
       return
     }

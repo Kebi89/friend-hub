@@ -27,15 +27,14 @@ export async function signUp(email: string, password: string, displayName: strin
       }])
 
     if (profileError) {
-      // Rollback auth user if profile creation fails
-      await supabase.auth.admin.deleteUser(authData.user.id)
       throw profileError
     }
 
+    localStorage.setItem('authenticatedUser', 'true')
     return { success: true, user: authData.user, profile: true }
   } catch (error) {
     console.error('Signup error:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Signup failed' }
   }
 }
 
@@ -52,10 +51,11 @@ export async function signIn(email: string, password: string) {
     if (error) throw error
     if (!data.user) throw new Error('No user found')
 
+    localStorage.setItem('authenticatedUser', 'true')
     return { success: true, user: data.user }
   } catch (error) {
     console.error('SignIn error:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Sign in failed' }
   }
 }
 
@@ -66,10 +66,11 @@ export async function signOut() {
   try {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
+    localStorage.removeItem('authenticatedUser')
     return { success: true }
   } catch (error) {
     console.error('SignOut error:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Sign out failed' }
   }
 }
 
@@ -78,6 +79,15 @@ export async function signOut() {
 // ============================================
 export async function getCurrentUser() {
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) localStorage.removeItem('authenticatedUser')
+  return user
+}
+
+export async function requireCurrentUser() {
+  const user = await getCurrentUser()
+  if (user) {
+    localStorage.setItem('authenticatedUser', 'true')
+  }
   return user
 }
 
@@ -207,7 +217,7 @@ export async function deleteMessage(messageId: string) {
 // CHECK IF USER IS LOGGED IN
 // ============================================
 export function isUserLoggedIn(): boolean {
-  // This is async, so we check if user data exists locally
+  // UI hint only. Protected actions must verify the Supabase session.
   return !!localStorage.getItem('authenticatedUser')
 }
 
@@ -215,6 +225,6 @@ export function isUserLoggedIn(): boolean {
 // GET CURRENT USER ID
 // ============================================
 export async function getCurrentUserId(): Promise<string | null> {
-  const user = await getCurrentUser()
+  const user = await requireCurrentUser()
   return user?.id || null
 }

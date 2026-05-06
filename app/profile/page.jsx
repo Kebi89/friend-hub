@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
-import { updateUserProfile, signOut as supabaseSignOut, getUserProfile, getCurrentUserId } from '@/lib/auth'
+import { updateUserProfile, signOut as supabaseSignOut, getUserProfile, requireCurrentUser } from '@/lib/auth'
 
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
@@ -21,19 +22,13 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const authStatus = localStorage.getItem('authenticatedUser')
-      if (authStatus !== 'true') {
+      const currentUser = await requireCurrentUser()
+      if (!currentUser) {
         router.push('/auth')
         return
       }
 
-      const currentUserId = await getCurrentUserId()
-      if (!currentUserId) {
-        setLoading(false)
-        return
-      }
-
-      const userProfile = await getUserProfile(currentUserId)
+      const userProfile = await getUserProfile(currentUser.id)
       if (userProfile) {
         setUser(userProfile)
         setFormData({
@@ -55,14 +50,14 @@ export default function ProfilePage() {
     setSuccess('')
     setSaving(true)
 
-    const currentUserId = await getCurrentUserId()
-    if (!currentUserId) {
+    const currentUser = await requireCurrentUser()
+    if (!currentUser) {
       setError('Not authenticated')
       setSaving(false)
       return
     }
 
-    const result = await updateUserProfile(currentUserId, {
+    const result = await updateUserProfile(currentUser.id, {
       display_name: formData.displayName,
       nickname: formData.nickname || null,
       birthdate: formData.birthdate || null,
@@ -88,7 +83,6 @@ export default function ProfilePage() {
   const handleLogout = async () => {
     if (window.confirm('Are you sure you want to log out?')) {
       await supabaseSignOut()
-      localStorage.removeItem('authenticatedUser')
       router.push('/auth')
     }
   }
@@ -227,7 +221,7 @@ export default function ProfilePage() {
           </div>
 
           <div className="text-center mt-6">
-            <a href="/" className="text-gray-600 hover:text-gray-800 text-sm">← Back to Home</a>
+            <Link href="/" className="text-gray-600 hover:text-gray-800 text-sm">← Back to Home</Link>
           </div>
         </div>
       </main>

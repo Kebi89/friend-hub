@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { isUserLoggedIn, getCurrentUser, logoutUser, signOut as supabaseSignOut, getCurrentUserId } from '@/lib/auth'
+import { requireCurrentUser, signOut as supabaseSignOut } from '@/lib/auth'
 
 export default function Navbar({ isAuthenticated = null, user = null }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -20,15 +20,12 @@ export default function Navbar({ isAuthenticated = null, user = null }) {
     if (isAuthenticated !== null || user) return
 
     const checkAuth = async () => {
-      // Check if we have authenticated user in localStorage
-      const isLocalLogged = localStorage.getItem('authenticatedUser') === 'true'
-      
-      let currentUserId = null
-      if (isLocalLogged) {
-        currentUserId = await getCurrentUserId()
-      }
-      
-      setAuthState({ isLogged: isLocalLogged, user: null, userId: currentUserId })
+      const currentUser = await requireCurrentUser()
+      setAuthState({
+        isLogged: !!currentUser,
+        user: currentUser,
+        userId: currentUser?.id || null,
+      })
     }
 
     checkAuth()
@@ -40,7 +37,6 @@ export default function Navbar({ isAuthenticated = null, user = null }) {
   const handleLogout = async () => {
     if (window.confirm('Are you sure you want to log out?')) {
       await supabaseSignOut()
-      localStorage.removeItem('authenticatedUser')
       setAuthState({ isLogged: false, user: null, userId: null })
       router.push('/auth')
     }

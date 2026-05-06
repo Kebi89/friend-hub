@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
-import { signIn, signUp, signOut } from '@/lib/auth'
+import { signIn, signUp } from '@/lib/auth'
 
 export default function AuthPage() {
   const router = useRouter()
@@ -35,8 +35,6 @@ export default function AuthPage() {
       // Sign in
       const result = await signIn(email, password)
       if (result.success && result.user) {
-        // Set authenticated user in localStorage
-        localStorage.setItem('authenticatedUser', 'true')
         router.push('/')
       } else {
         setError('Invalid email or password')
@@ -57,8 +55,6 @@ export default function AuthPage() {
 
       const result = await signUp(email, password, displayName, null, null, null)
       if (result.success && result.user) {
-        // Set authenticated user in localStorage
-        localStorage.setItem('authenticatedUser', 'true')
         router.push('/profile')
       } else {
         setError('Registration failed. Email may already be in use.')
@@ -177,10 +173,10 @@ export default function AuthPage() {
             <div className="mt-8 bg-blue-50 border-l-4 border-blue-600 p-4 rounded">
               <h3 className="font-semibold text-blue-900 mb-2 text-sm">Privacy Notice</h3>
               <ul className="text-xs text-blue-800 space-y-1">
-                <li>• Your data is stored locally in your browser</li>
-                <li>• No data leaves your device</li>
-                <li>• Works offline - no internet required</li>
-                <li>• Your password is hashed before storage</li>
+                <li>• Your account is managed by Supabase Auth</li>
+                <li>• Shared content is stored in the Supabase database</li>
+                <li>• Your session is kept in browser storage</li>
+                <li>• Your password is handled by Supabase, not this app</li>
               </ul>
             </div>
           </div>

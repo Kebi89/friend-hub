@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import { supabase } from '@/lib/supabase'
-import { isUserLoggedIn, getAllMessages, saveMessage, deleteMessage, getCurrentUserId, signOut as supabaseSignOut } from '@/lib/auth'
+import { getAllMessages, saveMessage, deleteMessage, requireCurrentUser } from '@/lib/auth'
 
 export default function MessagesPage() {
   const [messages, setMessages] = useState([])
@@ -18,14 +18,14 @@ export default function MessagesPage() {
   // Check authentication
   useEffect(() => {
     const checkAuth = async () => {
-      const isLogged = localStorage.getItem('authenticatedUser') === 'true'
-      if (!isLogged) {
+      const currentUser = await requireCurrentUser()
+      if (!currentUser) {
         setCheckingAuth(false)
         router.push('/auth')
         return
       }
 
-      const currentUserId = await getCurrentUserId()
+      const currentUserId = currentUser.id
       setUserId(currentUserId)
 
       const userProfile = await getUserProfile(currentUserId)

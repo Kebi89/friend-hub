@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import { supabase } from '@/lib/supabase'
+import { requireCurrentUser } from '@/lib/auth'
 
 export default function EventsPage() {
   const [isLoaded, setIsLoaded] = useState(false)
@@ -17,24 +17,17 @@ export default function EventsPage() {
     is_public: true, is_multi_day: false, costs: []
   })
 
-  const [costPerson, setCostPerson] = useState('')
-  const [costAmount, setCostAmount] = useState('')
   const router = useRouter()
 
   useEffect(() => {
     const checkAuth = async () => {
-      const authStatus = localStorage.getItem('authenticatedUser')
-      if (authStatus !== 'true') {
+      const currentUser = await requireCurrentUser()
+      if (!currentUser) {
         router.push('/auth')
         return
       }
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        setUserId(user?.id || null)
-        setIsLoaded(true)
-      } catch (error) {
-        router.push('/auth')
-      }
+      setUserId(currentUser.id)
+      setIsLoaded(true)
     }
     checkAuth()
   }, [router])
@@ -77,12 +70,16 @@ export default function EventsPage() {
         eventData.end_date = formData.end_date
         eventData.is_multi_day = true
       }
-      const { error } = await supabase.from('events').insert([eventData])
+      const query = editingEvent
+        ? supabase.from('events').update(eventData).eq('id', editingEvent.id).eq('creator_id', userId)
+        : supabase.from('events').insert([eventData])
+
+      const { error } = await query
       if (error) throw error
       loadEvents()
       setShowCreateForm(false)
       resetForm()
-      alert('Event created!')
+      alert(editingEvent ? 'Event updated!' : 'Event created!')
     } catch (error) {
       alert('Save failed: ' + error.message)
     }
@@ -113,16 +110,8 @@ export default function EventsPage() {
     }
   }
 
-  const getCostSummary = (costs) => {
-    if (!costs || costs.length === 0) return '0.00'
-    const total = costs.reduce((sum, cost) => sum + parseFloat(cost.amount), 0)
-    return total.toFixed(2)
-  }
-
   const resetForm = () => {
     setFormData({ title: '', description: '', start_date: '', end_date: '', location: '', is_public: true, is_multi_day: false, costs: [] })
-    setCostPerson('')
-    setCostAmount('')
     setEditingEvent(null)
   }
 

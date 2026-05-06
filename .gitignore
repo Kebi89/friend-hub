@@ -1,16 +1,20 @@
 # Node
 node_modules/
+node_modules_old/
 .npm
+.npm-cache/
 .pnpm-debug.log*
 .yarn-debug.log*
 .yarn-integrity*
 .yarn-release-tag*
 .next
+.next_old*/
 .out
 .cache
 .vercel
 *.tmp
 *.temp
+*.tsbuildinfo
 
 # Environment variables
 .env

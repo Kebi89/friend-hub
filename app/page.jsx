@@ -6,10 +6,9 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import Navbar from '@/components/Navbar'
 import { supabase } from '@/lib/supabase'
-import { isUserLoggedIn } from '@/lib/auth'
+import { requireCurrentUser } from '@/lib/auth'
 
 export default function Home() {
-  const [isLoaded, setIsLoaded] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [currentUser, setCurrentUser] = useState(null)
   const [messages, setMessages] = useState([])
@@ -21,27 +20,21 @@ export default function Home() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const logged = isUserLoggedIn()
-      
-      if (!logged) {
-        setIsAuthenticated(false)
-        setIsLoaded(true)
-        setLoading(false)
-        return
-      }
-
       try {
-        const { data: { user } } = await supabase.auth.getUser()
+        const user = await requireCurrentUser()
+        if (!user) {
+          setIsAuthenticated(false)
+          setLoading(false)
+          return
+        }
         setCurrentUser(user)
         setIsAuthenticated(true)
-        setIsLoaded(true)
         
         // Now load real data
         await loadRealData()
       } catch (error) {
         console.error('Error checking auth:', error)
         setIsAuthenticated(false)
-        setIsLoaded(true)
       } finally {
         setLoading(false)
       }
@@ -94,13 +87,13 @@ export default function Home() {
       if (photosData) {
         const loadedPhotos = await Promise.all(
           photosData.map(async (photo) => {
-            const { data: publicUrlData } = await supabase.storage
+            const { data: signedUrlData } = await supabase.storage
               .from('photos')
-              .getPublicUrl(photo.url)
+              .createSignedUrl(photo.url, 60 * 60)
 
             return {
               ...photo,
-              publicUrl: publicUrlData.publicUrl,
+              publicUrl: signedUrlData?.signedUrl || '',
               displayName: photo.profiles?.display_name || photo.profiles?.nickname || 'Anonymous',
             }
           })
@@ -224,7 +217,7 @@ export default function Home() {
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back, {currentUser?.email?.split('@')[0]}! 👋</h1>
-          <p className="text-gray-600">Here's what's happening in your Friends Hub</p>
+          <p className="text-gray-600">Here&apos;s what&apos;s happening in your Friends Hub</p>
         </div>
 
         {/* Main Tiles Grid - 6 tiles in 2 rows - All same height */}
