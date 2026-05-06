@@ -50,6 +50,16 @@ export default function EventsPage() {
     loadProfiles()
   }, [isLoaded, userId])
 
+  useEffect(() => {
+    if (!isLoaded) return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('create') === '1') {
+      resetForm()
+      setShowCreateForm(true)
+      window.history.replaceState(null, '', '/events')
+    }
+  }, [isLoaded])
+
   const loadEvents = async () => {
     try {
       const { data } = await supabase.from('events').select('*').order('event_date', { ascending: true })
@@ -122,15 +132,15 @@ export default function EventsPage() {
           ? profiles.map(profile => profile.id)
           : formData.access_member_ids
 
-        const chat = await createEventChat(
+        const chatResult = await createEventChat(
           savedEvent.id,
           savedEvent.title,
           userId,
           chatMemberIds
         )
 
-        if (!chat) {
-          alert('Event created, but the chat could not be created.')
+        if (!chatResult.success) {
+          alert(`Event created, but the chat could not be created: ${chatResult.error}`)
         }
       }
 

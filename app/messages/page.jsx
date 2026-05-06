@@ -381,7 +381,7 @@ export default function MessagesPage() {
             <div className="border-t border-slate-200 bg-white p-3 sm:p-4">
               <button
                 type="button"
-                onClick={() => router.push('/events')}
+                onClick={() => router.push('/events?create=1')}
                 className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-700"
               >
                 <Plus className="h-5 w-5" />

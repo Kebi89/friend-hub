@@ -155,7 +155,23 @@ export async function saveMessage(userId: string, content: string, chatId: strin
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      if (chatId === HUB_CHAT_ID && isMissingChatSchemaError(error)) {
+        const { data: legacyData, error: legacyError } = await supabase
+          .from('messages')
+          .insert([{
+            user_id: userId,
+            content: content,
+          }])
+          .select()
+          .single()
+
+        if (legacyError) throw legacyError
+        return legacyData
+      }
+
+      throw error
+    }
     return data
   } catch (error) {
     console.error('Save message error:', error)
@@ -175,7 +191,7 @@ export async function getAllMessages() {
 // ============================================
 export async function getMessagesForChat(chatId: string) {
   try {
-    const { data, error } = await supabase
+    const query = supabase
       .from('messages')
       .select(`
         *,
@@ -185,22 +201,37 @@ export async function getMessagesForChat(chatId: string) {
           nickname
         )
       `)
-      .eq('chat_id', chatId)
       .order('created_at', { ascending: false })
 
+    const { data, error } = await query.eq('chat_id', chatId)
+
     if (error) {
+      if (chatId === HUB_CHAT_ID && isMissingChatSchemaError(error)) {
+        const { data: legacyData, error: legacyError } = await supabase
+          .from('messages')
+          .select(`
+            *,
+            profiles (
+              id,
+              display_name,
+              nickname
+            )
+          `)
+          .order('created_at', { ascending: false })
+
+        if (legacyError) {
+          console.error('Get messages error:', legacyError)
+          return []
+        }
+
+        return formatMessages(legacyData || [])
+      }
+
       console.error('Get messages error:', error)
       return []
     }
 
-    // Transform data to match local format
-    return data.map(msg => ({
-      id: msg.id,
-      chatId: msg.chat_id,
-      user: msg.profiles?.display_name || msg.profiles?.nickname || 'Anonymous',
-      text: msg.content,
-      timestamp: msg.created_at,
-    }))
+    return formatMessages(data || [])
   } catch (error) {
     console.error('Get messages error:', error)
     return []
@@ -280,7 +311,7 @@ export async function getVisibleChats(userId: string) {
 // ============================================
 export async function createEventChat(eventId: string, title: string, createdBy: string, memberIds: string[]) {
   try {
-    const { data: chat, error: chatError } = await supabase
+    let { data: chat, error: chatError } = await supabase
       .from('chats')
       .insert([{
         title,
@@ -291,7 +322,19 @@ export async function createEventChat(eventId: string, title: string, createdBy:
       .select()
       .single()
 
+    if (chatError && chatError.code === '23505') {
+      const existing = await supabase
+        .from('chats')
+        .select('*')
+        .eq('event_id', eventId)
+        .single()
+
+      chat = existing.data
+      chatError = existing.error
+    }
+
     if (chatError) throw chatError
+    if (!chat) throw new Error('Chat was not created')
 
     const uniqueMemberIds = Array.from(new Set([createdBy, ...memberIds].filter(Boolean)))
     const memberRows = uniqueMemberIds.map((memberId) => ({
@@ -301,13 +344,16 @@ export async function createEventChat(eventId: string, title: string, createdBy:
 
     const { error: memberError } = await supabase
       .from('chat_members')
-      .insert(memberRows)
+      .upsert(memberRows, { onConflict: 'chat_id,user_id', ignoreDuplicates: true })
 
     if (memberError) throw memberError
-    return chat
+    return { success: true, chat }
   } catch (error) {
     console.error('Create event chat error:', error)
-    return null
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Create event chat failed',
+    }
   }
 }
 
@@ -324,7 +370,7 @@ export async function saveEventAccess(eventId: string, creatorId: string, member
 
     const { error } = await supabase
       .from('event_participants')
-      .upsert(participantRows, { onConflict: 'event_id,user_id' })
+      .upsert(participantRows, { onConflict: 'event_id,user_id', ignoreDuplicates: true })
 
     if (error) throw error
     return true
@@ -366,4 +412,19 @@ export function isUserLoggedIn(): boolean {
 export async function getCurrentUserId(): Promise<string | null> {
   const user = await requireCurrentUser()
   return user?.id || null
+}
+
+function isMissingChatSchemaError(error: any) {
+  const message = `${error?.message || ''} ${error?.details || ''}`
+  return error?.code === '42703' || message.includes('chat_id') || message.includes('chats')
+}
+
+function formatMessages(data: any[]) {
+  return data.map(msg => ({
+    id: msg.id,
+    chatId: msg.chat_id || HUB_CHAT_ID,
+    user: msg.profiles?.display_name || msg.profiles?.nickname || 'Anonymous',
+    text: msg.content,
+    timestamp: msg.created_at,
+  }))
 }
