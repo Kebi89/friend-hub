@@ -311,43 +311,16 @@ export async function getVisibleChats(userId: string) {
 // ============================================
 export async function createEventChat(eventId: string, title: string, createdBy: string, memberIds: string[]) {
   try {
-    let { data: chat, error: chatError } = await supabase
-      .from('chats')
-      .insert([{
-        title,
-        type: 'event',
-        event_id: eventId,
-        created_by: createdBy,
-      }])
-      .select()
-      .single()
-
-    if (chatError && chatError.code === '23505') {
-      const existing = await supabase
-        .from('chats')
-        .select('*')
-        .eq('event_id', eventId)
-        .single()
-
-      chat = existing.data
-      chatError = existing.error
-    }
-
-    if (chatError) throw chatError
-    if (!chat) throw new Error('Chat was not created')
-
     const uniqueMemberIds = Array.from(new Set([createdBy, ...memberIds].filter(Boolean)))
-    const memberRows = uniqueMemberIds.map((memberId) => ({
-      chat_id: chat.id,
-      user_id: memberId,
-    }))
 
-    const { error: memberError } = await supabase
-      .from('chat_members')
-      .upsert(memberRows, { onConflict: 'chat_id,user_id', ignoreDuplicates: true })
+    const { data: chatId, error } = await supabase.rpc('create_event_chat_group', {
+      target_event_id: eventId,
+      chat_title: title,
+      member_ids: uniqueMemberIds,
+    })
 
-    if (memberError) throw memberError
-    return { success: true, chat }
+    if (error) throw error
+    return { success: true, chat: { id: chatId, event_id: eventId, title } }
   } catch (error) {
     console.error('Create event chat error:', error)
     return {

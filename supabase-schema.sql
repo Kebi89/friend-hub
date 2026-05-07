@@ -260,6 +260,71 @@ $$;
 REVOKE ALL ON FUNCTION private.is_chat_creator(UUID, UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION private.is_chat_creator(UUID, UUID) TO authenticated;
 
+CREATE OR REPLACE FUNCTION public.create_event_chat_group(
+  target_event_id UUID,
+  chat_title TEXT,
+  member_ids UUID[] DEFAULT '{}'
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  current_user_id UUID := auth.uid();
+  target_creator_id UUID;
+  target_end_date DATE;
+  created_chat_id UUID;
+BEGIN
+  IF current_user_id IS NULL THEN
+    RAISE EXCEPTION 'Authentication required';
+  END IF;
+
+  SELECT events.creator_id, COALESCE(events.end_date, events.event_date)
+  INTO target_creator_id, target_end_date
+  FROM public.events
+  WHERE events.id = target_event_id;
+
+  IF target_creator_id IS NULL THEN
+    RAISE EXCEPTION 'Event not found';
+  END IF;
+
+  IF target_creator_id <> current_user_id THEN
+    RAISE EXCEPTION 'Only the event creator can create the event chat';
+  END IF;
+
+  IF target_end_date < CURRENT_DATE THEN
+    RAISE EXCEPTION 'Cannot create a chat for a past event';
+  END IF;
+
+  INSERT INTO public.chats (title, type, event_id, created_by)
+  VALUES (COALESCE(NULLIF(chat_title, ''), 'Event Chat'), 'event', target_event_id, current_user_id)
+  ON CONFLICT (event_id) WHERE event_id IS NOT NULL
+  DO UPDATE SET title = EXCLUDED.title
+  RETURNING id INTO created_chat_id;
+
+  INSERT INTO public.event_participants (event_id, user_id)
+  SELECT target_event_id, selected_member_id
+  FROM (
+    SELECT DISTINCT unnest(ARRAY[current_user_id] || COALESCE(member_ids, '{}')) AS selected_member_id
+  ) selected_members
+  WHERE selected_member_id IS NOT NULL
+  ON CONFLICT (event_id, user_id) DO NOTHING;
+
+  INSERT INTO public.chat_members (chat_id, user_id)
+  SELECT created_chat_id, selected_member_id
+  FROM (
+    SELECT DISTINCT unnest(ARRAY[current_user_id] || COALESCE(member_ids, '{}')) AS selected_member_id
+  ) selected_members
+  WHERE selected_member_id IS NOT NULL
+  ON CONFLICT (chat_id, user_id) DO NOTHING;
+
+  RETURN created_chat_id;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.create_event_chat_group(UUID, TEXT, UUID[]) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.create_event_chat_group(UUID, TEXT, UUID[]) TO authenticated;
+
 -- ============================================
 -- POLICIES
 -- ============================================
