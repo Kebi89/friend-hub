@@ -102,7 +102,9 @@ export default function EventsPage() {
 
       setUserId(currentUser.id)
 
+      const eventId = editingEvent?.id || crypto.randomUUID()
       const eventData = {
+        id: eventId,
         creator_id: currentUser.id,
         title: formData.title,
         description: formData.description || '',
@@ -117,13 +119,18 @@ export default function EventsPage() {
       }
 
       const query = editingEvent
-        ? supabase.from('events').update(eventData).eq('id', editingEvent.id).eq('creator_id', userId).select().single()
-        : supabase.from('events').insert([eventData]).select().single()
+        ? supabase.from('events').update(eventData).eq('id', editingEvent.id).eq('creator_id', currentUser.id)
+        : supabase.from('events').insert([eventData])
 
-      const { data: savedEvent, error } = await query
+      const { error } = await query
       if (error) throw error
 
-      if (!editingEvent && savedEvent) {
+      const savedEvent = {
+        id: eventId,
+        title: eventData.title,
+      }
+
+      if (!editingEvent) {
         const accessResult = await saveEventAccess(
           savedEvent.id,
           currentUser.id,
@@ -136,7 +143,7 @@ export default function EventsPage() {
         }
       }
 
-      if (!editingEvent && formData.create_chat && savedEvent) {
+      if (!editingEvent && formData.create_chat) {
         const chatMemberIds = formData.is_public
           ? profiles.map(profile => profile.id)
           : formData.access_member_ids
