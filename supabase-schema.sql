@@ -80,6 +80,26 @@ CREATE TABLE IF NOT EXISTS event_participants (
   UNIQUE(event_id, user_id)
 );
 
+-- Create event tasks table
+CREATE TABLE IF NOT EXISTS event_tasks (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  event_id UUID REFERENCES events(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  title TEXT NOT NULL,
+  is_done BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create event costs table
+CREATE TABLE IF NOT EXISTS event_costs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  event_id UUID REFERENCES events(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  description TEXT NOT NULL,
+  amount NUMERIC(10, 2) NOT NULL CHECK (amount >= 0),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Ensure newer columns exist for older installs
 DO $$
 BEGIN
@@ -144,6 +164,8 @@ CREATE INDEX IF NOT EXISTS idx_photos_user ON photos(user_id);
 CREATE INDEX IF NOT EXISTS idx_photos_event ON photos(event_id);
 CREATE INDEX IF NOT EXISTS idx_events_creator ON events(creator_id);
 CREATE INDEX IF NOT EXISTS idx_events_date ON events(event_date);
+CREATE INDEX IF NOT EXISTS idx_event_tasks_event ON event_tasks(event_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_event_costs_event ON event_costs(event_id, created_at DESC);
 
 -- ============================================
 -- ROW LEVEL SECURITY
@@ -157,12 +179,16 @@ ALTER TABLE chat_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE photos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE event_participants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE event_tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE event_costs ENABLE ROW LEVEL SECURITY;
 
 -- Make newly added tables available through the authenticated Data API.
 GRANT SELECT, INSERT, UPDATE, DELETE ON chats TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON chat_members TO authenticated;
 GRANT SELECT, INSERT, DELETE ON messages TO authenticated;
 GRANT SELECT, INSERT, DELETE ON event_participants TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON event_tasks TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON event_costs TO authenticated;
 
 -- Private helper for event visibility checks. Keep security definer helpers outside exposed schemas.
 CREATE SCHEMA IF NOT EXISTS private;
@@ -381,6 +407,15 @@ DROP POLICY IF EXISTS "Users can view permitted participants" ON event_participa
 DROP POLICY IF EXISTS "Event creators can add participants" ON event_participants;
 DROP POLICY IF EXISTS "Event creators can remove participants" ON event_participants;
 
+DROP POLICY IF EXISTS "Permitted users can view event tasks" ON event_tasks;
+DROP POLICY IF EXISTS "Permitted users can add event tasks" ON event_tasks;
+DROP POLICY IF EXISTS "Permitted users can update event tasks" ON event_tasks;
+DROP POLICY IF EXISTS "Permitted users can delete event tasks" ON event_tasks;
+DROP POLICY IF EXISTS "Permitted users can view event costs" ON event_costs;
+DROP POLICY IF EXISTS "Permitted users can add event costs" ON event_costs;
+DROP POLICY IF EXISTS "Cost creators can update event costs" ON event_costs;
+DROP POLICY IF EXISTS "Cost creators can delete event costs" ON event_costs;
+
 -- Profiles policies
 CREATE POLICY "Authenticated users can view profiles" ON profiles
   FOR SELECT TO authenticated USING (true);
@@ -476,6 +511,43 @@ CREATE POLICY "Users can leave events as self" ON event_participants
   FOR DELETE TO authenticated USING (auth.uid() = user_id);
 CREATE POLICY "Event creators can remove participants" ON event_participants
   FOR DELETE TO authenticated USING (private.is_event_creator(event_id, auth.uid()));
+
+-- Event task policies
+CREATE POLICY "Permitted users can view event tasks" ON event_tasks
+  FOR SELECT TO authenticated USING (private.can_access_event(event_id, auth.uid()));
+CREATE POLICY "Permitted users can add event tasks" ON event_tasks
+  FOR INSERT TO authenticated WITH CHECK (
+    auth.uid() = user_id
+    AND private.can_access_event(event_id, auth.uid())
+  );
+CREATE POLICY "Permitted users can update event tasks" ON event_tasks
+  FOR UPDATE TO authenticated USING (private.can_access_event(event_id, auth.uid()))
+  WITH CHECK (private.can_access_event(event_id, auth.uid()));
+CREATE POLICY "Permitted users can delete event tasks" ON event_tasks
+  FOR DELETE TO authenticated USING (
+    user_id = auth.uid()
+    OR private.is_event_creator(event_id, auth.uid())
+  );
+
+-- Event cost policies
+CREATE POLICY "Permitted users can view event costs" ON event_costs
+  FOR SELECT TO authenticated USING (private.can_access_event(event_id, auth.uid()));
+CREATE POLICY "Permitted users can add event costs" ON event_costs
+  FOR INSERT TO authenticated WITH CHECK (
+    auth.uid() = user_id
+    AND private.can_access_event(event_id, auth.uid())
+  );
+CREATE POLICY "Cost creators can update event costs" ON event_costs
+  FOR UPDATE TO authenticated USING (user_id = auth.uid())
+  WITH CHECK (
+    user_id = auth.uid()
+    AND private.can_access_event(event_id, auth.uid())
+  );
+CREATE POLICY "Cost creators can delete event costs" ON event_costs
+  FOR DELETE TO authenticated USING (
+    user_id = auth.uid()
+    OR private.is_event_creator(event_id, auth.uid())
+  );
 
 -- ============================================
 -- STORAGE

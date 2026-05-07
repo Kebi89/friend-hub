@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { CalendarDays, MapPin, PartyPopper, Plus, Users } from 'lucide-react'
+import { CalendarDays, CheckSquare, MapPin, PartyPopper, Plus, Trash2, Users, Wallet, X } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import { supabase } from '@/lib/supabase'
 import { createEventChat, requireCurrentUser, saveEventAccess } from '@/lib/auth'
@@ -27,6 +27,12 @@ export default function EventsPage() {
   const [profiles, setProfiles] = useState([])
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [editingEvent, setEditingEvent] = useState(null)
+  const [selectedEvent, setSelectedEvent] = useState(null)
+  const [eventTasks, setEventTasks] = useState([])
+  const [eventCosts, setEventCosts] = useState([])
+  const [eventParticipants, setEventParticipants] = useState([])
+  const [newTask, setNewTask] = useState('')
+  const [newCost, setNewCost] = useState({ description: '', amount: '' })
   const [formData, setFormData] = useState(emptyForm)
 
   const router = useRouter()
@@ -194,6 +200,126 @@ export default function EventsPage() {
     }
   }
 
+  const openEventDetails = async (event) => {
+    setSelectedEvent(event)
+    await loadEventDetails(event)
+  }
+
+  const loadEventDetails = async (event) => {
+    if (!event) return
+
+    const [{ data: tasks }, { data: costs }, { data: participants }] = await Promise.all([
+      supabase
+        .from('event_tasks')
+        .select('*, profiles(id, display_name, nickname)')
+        .eq('event_id', event.id)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('event_costs')
+        .select('*, profiles(id, display_name, nickname)')
+        .eq('event_id', event.id)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('event_participants')
+        .select('user_id, profiles(id, display_name, nickname)')
+        .eq('event_id', event.id),
+    ])
+
+    setEventTasks(tasks || [])
+    setEventCosts(costs || [])
+    setEventParticipants((participants || []).map(participant => ({
+      id: participant.user_id,
+      displayName: participant.profiles?.display_name || participant.profiles?.nickname || 'Friend',
+    })))
+  }
+
+  const handleAddTask = async (e) => {
+    e.preventDefault()
+    if (!selectedEvent || !newTask.trim() || !userId) return
+
+    const { error } = await supabase.from('event_tasks').insert([{
+      event_id: selectedEvent.id,
+      user_id: userId,
+      title: newTask.trim(),
+    }])
+
+    if (error) {
+      alert('Could not add task: ' + error.message)
+      return
+    }
+
+    setNewTask('')
+    loadEventDetails(selectedEvent)
+  }
+
+  const handleToggleTask = async (task) => {
+    const { error } = await supabase
+      .from('event_tasks')
+      .update({ is_done: !task.is_done })
+      .eq('id', task.id)
+
+    if (error) {
+      alert('Could not update task: ' + error.message)
+      return
+    }
+
+    loadEventDetails(selectedEvent)
+  }
+
+  const handleDeleteTask = async (task) => {
+    const { error } = await supabase
+      .from('event_tasks')
+      .delete()
+      .eq('id', task.id)
+
+    if (error) {
+      alert('Could not delete task: ' + error.message)
+      return
+    }
+
+    loadEventDetails(selectedEvent)
+  }
+
+  const handleAddCost = async (e) => {
+    e.preventDefault()
+    if (!selectedEvent || !newCost.description.trim() || !newCost.amount || !userId) return
+
+    const amount = Number.parseFloat(newCost.amount)
+    if (!Number.isFinite(amount) || amount < 0) {
+      alert('Enter a valid price.')
+      return
+    }
+
+    const { error } = await supabase.from('event_costs').insert([{
+      event_id: selectedEvent.id,
+      user_id: userId,
+      description: newCost.description.trim(),
+      amount,
+    }])
+
+    if (error) {
+      alert('Could not add cost: ' + error.message)
+      return
+    }
+
+    setNewCost({ description: '', amount: '' })
+    loadEventDetails(selectedEvent)
+  }
+
+  const handleDeleteCost = async (cost) => {
+    const { error } = await supabase
+      .from('event_costs')
+      .delete()
+      .eq('id', cost.id)
+
+    if (error) {
+      alert('Could not delete cost: ' + error.message)
+      return
+    }
+
+    loadEventDetails(selectedEvent)
+  }
+
   const resetForm = () => {
     setFormData(emptyForm)
     setEditingEvent(null)
@@ -229,6 +355,22 @@ export default function EventsPage() {
     })
     setShowCreateForm(true)
   }
+
+  const getDisplayName = (profile) => profile?.display_name || profile?.nickname || 'Friend'
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: 'EUR',
+    }).format(Number(amount || 0))
+  }
+
+  const splitMembers = selectedEvent?.is_public
+    ? profiles.map(profile => ({ id: profile.id, displayName: getDisplayName(profile) }))
+    : eventParticipants
+  const totalCosts = eventCosts.reduce((sum, cost) => sum + Number(cost.amount || 0), 0)
+  const splitCount = Math.max(splitMembers.length || 0, 1)
+  const splitPerPerson = totalCosts / splitCount
 
   if (!isLoaded) {
     return (
@@ -277,7 +419,16 @@ export default function EventsPage() {
               const isPast = startDate < new Date().setHours(0, 0, 0, 0)
 
               return (
-                <div key={event.id} className={`rounded-lg border-l-4 bg-white p-6 shadow-md ${isPast ? 'border-gray-400 opacity-75' : 'border-blue-500'}`}>
+                <div
+                  key={event.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openEventDetails(event)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') openEventDetails(event)
+                  }}
+                  className={`cursor-pointer rounded-lg border-l-4 bg-white p-6 shadow-md transition hover:shadow-lg ${isPast ? 'border-gray-400 opacity-75' : 'border-blue-500'}`}
+                >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <h3 className="mb-2 text-xl font-bold text-gray-900">{event.title}</h3>
@@ -296,8 +447,8 @@ export default function EventsPage() {
                     <div className="ml-4 flex flex-col gap-2">
                       {event.creator_id === userId && (
                         <>
-                          <button onClick={() => startEditing(event)} className="text-sm font-medium text-yellow-600 hover:text-yellow-700">Edit</button>
-                          <button onClick={() => handleDeleteEvent(event.id)} className="text-sm font-medium text-red-600 hover:text-red-700">Delete</button>
+                          <button onClick={(e) => { e.stopPropagation(); startEditing(event) }} className="text-sm font-medium text-yellow-600 hover:text-yellow-700">Edit</button>
+                          <button onClick={(e) => { e.stopPropagation(); handleDeleteEvent(event.id) }} className="text-sm font-medium text-red-600 hover:text-red-700">Delete</button>
                         </>
                       )}
                     </div>
@@ -308,6 +459,172 @@ export default function EventsPage() {
           )}
         </div>
       </main>
+
+      {selectedEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={() => setSelectedEvent(null)}>
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-lg bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-200 bg-white p-5">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-950">{selectedEvent.title}</h2>
+                <div className="mt-2 flex flex-wrap gap-3 text-sm text-slate-600">
+                  <span className="flex items-center gap-1">
+                    <CalendarDays className="h-4 w-4" />
+                    {new Date(`${selectedEvent.event_date}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                  </span>
+                  {selectedEvent.location && (
+                    <span className="flex items-center gap-1">
+                      <MapPin className="h-4 w-4" />
+                      {selectedEvent.location}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedEvent(null)}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                aria-label="Close event details"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="grid gap-6 p-5 lg:grid-cols-[1fr_1fr]">
+              <section>
+                <div className="mb-4">
+                  <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+                    <CheckSquare className="h-5 w-5 text-blue-600" />
+                    Checklist
+                  </h3>
+                  {selectedEvent.description && <p className="mt-2 text-sm text-slate-600">{selectedEvent.description}</p>}
+                </div>
+
+                <form onSubmit={handleAddTask} className="mb-4 flex gap-2">
+                  <input
+                    type="text"
+                    value={newTask}
+                    onChange={(e) => setNewTask(e.target.value)}
+                    placeholder="Add a task..."
+                    className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!newTask.trim()}
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    Add
+                  </button>
+                </form>
+
+                <div className="space-y-2">
+                  {eventTasks.length === 0 ? (
+                    <p className="rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-500">No tasks yet.</p>
+                  ) : (
+                    eventTasks.map(task => (
+                      <div key={task.id} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <input
+                          type="checkbox"
+                          checked={!!task.is_done}
+                          onChange={() => handleToggleTask(task)}
+                          className="h-4 w-4"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-sm font-medium ${task.is_done ? 'text-slate-400 line-through' : 'text-slate-900'}`}>{task.title}</p>
+                          <p className="text-xs text-slate-500">Added by {getDisplayName(task.profiles)}</p>
+                        </div>
+                        {(task.user_id === userId || selectedEvent.creator_id === userId) && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTask(task)}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600"
+                            aria-label="Delete task"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </section>
+
+              <section>
+                <div className="mb-4">
+                  <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+                    <Wallet className="h-5 w-5 text-blue-600" />
+                    Costs & Split Bill
+                  </h3>
+                  <p className="mt-2 text-sm text-slate-600">Track what was bought and split the total across permitted members.</p>
+                </div>
+
+                <form onSubmit={handleAddCost} className="mb-4 grid gap-2 sm:grid-cols-[1fr_8rem_auto]">
+                  <input
+                    type="text"
+                    value={newCost.description}
+                    onChange={(e) => setNewCost(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="What was bought?"
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={newCost.amount}
+                    onChange={(e) => setNewCost(prev => ({ ...prev, amount: e.target.value }))}
+                    placeholder="Price"
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!newCost.description.trim() || !newCost.amount}
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    Add
+                  </button>
+                </form>
+
+                <div className="mb-4 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-lg bg-slate-100 p-4">
+                    <p className="text-xs font-medium uppercase text-slate-500">Total</p>
+                    <p className="mt-1 text-2xl font-bold text-slate-950">{formatCurrency(totalCosts)}</p>
+                  </div>
+                  <div className="rounded-lg bg-blue-50 p-4">
+                    <p className="text-xs font-medium uppercase text-blue-700">Equal split</p>
+                    <p className="mt-1 text-2xl font-bold text-blue-950">{formatCurrency(splitPerPerson)}</p>
+                    <p className="text-xs text-blue-700">{splitCount} member{splitCount !== 1 ? 's' : ''}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {eventCosts.length === 0 ? (
+                    <p className="rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-500">No costs yet.</p>
+                  ) : (
+                    eventCosts.map(cost => (
+                      <div key={cost.id} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-slate-900">{cost.description}</p>
+                          <p className="text-xs text-slate-500">Added by {getDisplayName(cost.profiles)}</p>
+                        </div>
+                        <p className="text-sm font-semibold text-slate-900">{formatCurrency(cost.amount)}</p>
+                        {(cost.user_id === userId || selectedEvent.creator_id === userId) && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCost(cost)}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600"
+                            aria-label="Delete cost"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showCreateForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={closeForm}>
