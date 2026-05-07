@@ -94,8 +94,16 @@ export default function EventsPage() {
     }
 
     try {
+      const currentUser = await requireCurrentUser()
+      if (!currentUser) {
+        router.push('/auth')
+        return
+      }
+
+      setUserId(currentUser.id)
+
       const eventData = {
-        creator_id: userId,
+        creator_id: currentUser.id,
         title: formData.title,
         description: formData.description || '',
         event_date: formData.start_date,
@@ -118,7 +126,7 @@ export default function EventsPage() {
       if (!editingEvent && savedEvent) {
         const accessResult = await saveEventAccess(
           savedEvent.id,
-          userId,
+          currentUser.id,
           formData.is_public ? [] : formData.access_member_ids
         )
 
@@ -136,7 +144,7 @@ export default function EventsPage() {
         const chatResult = await createEventChat(
           savedEvent.id,
           savedEvent.title,
-          userId,
+          currentUser.id,
           chatMemberIds
         )
 
