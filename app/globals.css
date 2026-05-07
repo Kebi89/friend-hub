@@ -3,12 +3,42 @@
 @tailwind utilities;
 
 :root {
-  --primary: 217 91% 60%;
-  --accent: 24 95% 53%;
   --background: 0 0% 100%;
-  --foreground: 222 84% 5%;
+  --foreground: 224 36% 8%;
+  --card: 0 0% 100%;
+  --card-foreground: 224 36% 8%;
+  --primary: 216 82% 52%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 166 38% 93%;
+  --secondary-foreground: 176 56% 16%;
+  --muted: 216 22% 95%;
+  --muted-foreground: 220 10% 42%;
+  --accent: 31 93% 58%;
+  --accent-foreground: 24 40% 12%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 218 24% 88%;
+  --input: 218 24% 88%;
+  --ring: 216 82% 52%;
+  --radius: 0.5rem;
 }
 
 body {
   font-family: system-ui, -apple-system, sans-serif;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+::selection {
+  background: hsl(var(--primary) / 0.16);
+}
+
+@layer components {
+  .app-surface {
+    @apply border border-border bg-card text-card-foreground shadow-soft;
+  }
+
+  .interactive-lift {
+    @apply transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift;
+  }
 }
