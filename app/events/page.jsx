@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { CalendarDays, CheckSquare, MapPin, PartyPopper, Plus, Trash2, Users, Wallet, X } from 'lucide-react'
+import { CalendarDays, CheckSquare, Clock, MapPin, PartyPopper, Plus, Trash2, Users, Wallet, X } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import { supabase } from '@/lib/supabase'
 import { createEventChat, requireCurrentUser, saveEventAccess } from '@/lib/auth'
@@ -11,6 +11,7 @@ const emptyForm = {
   title: '',
   description: '',
   start_date: '',
+  start_time: '',
   end_date: '',
   location: '',
   is_public: true,
@@ -115,6 +116,7 @@ export default function EventsPage() {
         title: formData.title,
         description: formData.description || '',
         event_date: formData.start_date,
+        event_time: formData.start_time || null,
         location: formData.location || '',
         is_public: formData.is_public,
       }
@@ -345,6 +347,7 @@ export default function EventsPage() {
       title: event.title,
       description: event.description || '',
       start_date: event.event_date,
+      start_time: event.event_time || '',
       end_date: event.end_date || '',
       location: event.location || '',
       is_public: event.is_public,
@@ -363,6 +366,18 @@ export default function EventsPage() {
       style: 'currency',
       currency: 'EUR',
     }).format(Number(amount || 0))
+  }
+
+  const formatTime = (time) => {
+    if (!time) return null
+    const [hours, minutes] = time.split(':')
+    const date = new Date()
+    date.setHours(Number(hours || 0), Number(minutes || 0), 0, 0)
+    return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+  }
+
+  const getMapsUrl = (location) => {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`
   }
 
   const splitMembers = selectedEvent?.is_public
@@ -436,12 +451,24 @@ export default function EventsPage() {
                         <CalendarDays className="h-4 w-4" />
                         {startDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
                       </p>
+                      {event.event_time && (
+                        <p className="mt-1 flex items-center gap-2 text-sm text-gray-600">
+                          <Clock className="h-4 w-4" />
+                          {formatTime(event.event_time)}
+                        </p>
+                      )}
                       {event.description && <p className="mt-2 text-sm text-gray-700">{event.description}</p>}
                       {event.location && (
-                        <p className="mt-1 flex items-center gap-2 text-sm text-gray-600">
+                        <a
+                          href={getMapsUrl(event.location)}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="mt-1 flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
+                        >
                           <MapPin className="h-4 w-4" />
                           {event.location}
-                        </p>
+                        </a>
                       )}
                     </div>
                     <div className="ml-4 flex flex-col gap-2">
@@ -471,11 +498,22 @@ export default function EventsPage() {
                     <CalendarDays className="h-4 w-4" />
                     {new Date(`${selectedEvent.event_date}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
                   </span>
-                  {selectedEvent.location && (
+                  {selectedEvent.event_time && (
                     <span className="flex items-center gap-1">
+                      <Clock className="h-4 w-4" />
+                      {formatTime(selectedEvent.event_time)}
+                    </span>
+                  )}
+                  {selectedEvent.location && (
+                    <a
+                      href={getMapsUrl(selectedEvent.location)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-1 text-blue-600 hover:text-blue-700"
+                    >
                       <MapPin className="h-4 w-4" />
                       {selectedEvent.location}
-                    </span>
+                    </a>
                   )}
                 </div>
               </div>
@@ -647,8 +685,16 @@ export default function EventsPage() {
                 <input type="date" value={formData.start_date} onChange={handleInputChange} name="start_date" className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500" required />
               </div>
               <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Start Time</label>
+                <input type="time" value={formData.start_time} onChange={handleInputChange} name="start_time" className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">End Date</label>
                 <input type="date" value={formData.end_date} onChange={handleInputChange} name="end_date" className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Location</label>
+                <input type="text" value={formData.location} onChange={handleInputChange} name="location" placeholder="Address, venue, or place" className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500" />
               </div>
               <div className="flex items-center">
                 <input type="checkbox" id="multi_day" checked={formData.is_multi_day} onChange={(e) => setFormData(prev => ({ ...prev, is_multi_day: e.target.checked, end_date: e.target.checked ? prev.end_date || prev.start_date : '' }))} className="mr-2" />

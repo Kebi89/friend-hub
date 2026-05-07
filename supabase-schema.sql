@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS events (
   title TEXT NOT NULL,
   description TEXT,
   event_date DATE NOT NULL,
+  event_time TIME,
   end_date DATE,
   location TEXT,
   is_public BOOLEAN DEFAULT true,
@@ -115,6 +116,13 @@ BEGIN
     WHERE table_name = 'events' AND column_name = 'is_multi_day'
   ) THEN
     ALTER TABLE events ADD COLUMN is_multi_day BOOLEAN DEFAULT false;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'events' AND column_name = 'event_time'
+  ) THEN
+    ALTER TABLE events ADD COLUMN event_time TIME;
   END IF;
 
   IF NOT EXISTS (
