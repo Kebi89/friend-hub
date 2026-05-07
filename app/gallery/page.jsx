@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { Camera, Image as ImageIcon, Trash2, X } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import { supabase } from '@/lib/supabase'
 import { requireCurrentUser } from '@/lib/auth'
@@ -10,6 +11,7 @@ export default function GalleryPage() {
   const [photos, setPhotos] = useState([])
   const [isLoaded, setIsLoaded] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [deletingPhotoId, setDeletingPhotoId] = useState(null)
   const [selectedPhoto, setSelectedPhoto] = useState(null)
   const [userId, setUserId] = useState(null)
   const router = useRouter()
@@ -34,7 +36,6 @@ export default function GalleryPage() {
 
     loadPhotos()
 
-    // Real-time subscription
     const channel = supabase
       .channel('photos-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'photos' }, loadPhotos)
@@ -96,19 +97,16 @@ export default function GalleryPage() {
     setUploading(true)
 
     try {
-      // Create unique filename
       const fileExt = file.name.split('.').pop()
       const safeExt = fileExt ? fileExt.toLowerCase().replace(/[^a-z0-9]/g, '') : 'jpg'
       const filePath = `${userId}/${Date.now()}.${safeExt}`
 
-      // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('photos')
         .upload(filePath, file)
 
       if (uploadError) throw uploadError
 
-      // Save metadata to database
       const { error: dbError } = await supabase
         .from('photos')
         .insert([{
@@ -130,6 +128,41 @@ export default function GalleryPage() {
     }
   }
 
+  const handleDeletePhoto = async (photo) => {
+    if (!photo || photo.user_id !== userId) {
+      alert('You can only delete photos you uploaded.')
+      return
+    }
+
+    if (!window.confirm('Delete this photo?')) return
+
+    setDeletingPhotoId(photo.id)
+
+    try {
+      const { error: storageError } = await supabase.storage
+        .from('photos')
+        .remove([photo.url])
+
+      if (storageError) throw storageError
+
+      const { error: dbError } = await supabase
+        .from('photos')
+        .delete()
+        .eq('id', photo.id)
+        .eq('user_id', userId)
+
+      if (dbError) throw dbError
+
+      setSelectedPhoto(current => current?.id === photo.id ? null : current)
+      setPhotos(current => current.filter(item => item.id !== photo.id))
+    } catch (error) {
+      console.error('Delete photo error:', error)
+      alert(`Delete failed: ${error.message}`)
+    } finally {
+      setDeletingPhotoId(null)
+    }
+  }
+
   if (!isLoaded) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -146,21 +179,24 @@ export default function GalleryPage() {
       <Navbar />
 
       <main className="container mx-auto px-4 py-8">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-800 mb-4">📸 Photo Gallery</h1>
+        <div className="mb-12 text-center">
+          <h1 className="mb-4 flex items-center justify-center gap-3 text-4xl font-bold text-gray-800">
+            <Camera className="h-9 w-9 text-blue-600" />
+            Photo Gallery
+          </h1>
           <p className="text-lg text-gray-600">Share and view photos from our adventures!</p>
         </div>
 
-        {/* Upload Button */}
-        <div className="max-w-4xl mx-auto mb-8">
+        <div className="mx-auto mb-8 max-w-4xl">
           <label className="block">
             <button
               type="button"
               onClick={() => document.getElementById('photo-upload').click()}
-              disabled={uploading && !userId}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-8 rounded-lg transition-colors shadow-md disabled:opacity-50"
+              disabled={uploading || !userId}
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-8 py-4 font-semibold text-white shadow-md transition-colors hover:bg-blue-700 disabled:opacity-50"
             >
-              {uploading ? 'Uploading...' : '📷 Upload Photo'}
+              <Camera className="h-5 w-5" />
+              {uploading ? 'Uploading...' : 'Upload Photo'}
             </button>
             <input
               id="photo-upload"
@@ -168,81 +204,120 @@ export default function GalleryPage() {
               accept="image/*"
               onChange={handleFileChange}
               className="hidden"
-              disabled={uploading && !userId}
+              disabled={uploading || !userId}
             />
           </label>
         </div>
 
-        {/* Photo Grid */}
         {photos.length === 0 ? (
-          <div className="max-w-4xl mx-auto text-center py-12">
-            <div className="text-6xl mb-4">🖼️</div>
-            <p className="text-gray-500 text-lg">No photos yet!</p>
+          <div className="mx-auto max-w-4xl py-12 text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-sm">
+              <ImageIcon className="h-8 w-8 text-slate-500" />
+            </div>
+            <p className="text-lg text-gray-500">No photos yet!</p>
             <p className="text-gray-400">Upload the first photo from this device.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {photos.map((photo) => (
-              <div
-                key={photo.id}
-                className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow cursor-pointer"
-                onClick={() => setSelectedPhoto(photo)}
-              >
-                <div className="aspect-square relative">
-                  <img
-                    src={photo.publicUrl}
-                    alt="Gallery"
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {photos.map((photo) => {
+              const canDelete = photo.user_id === userId
+              const isDeleting = deletingPhotoId === photo.id
+
+              return (
+                <div
+                  key={photo.id}
+                  className="overflow-hidden rounded-xl bg-white shadow-md transition-shadow hover:shadow-xl"
+                >
+                  <button
+                    type="button"
+                    className="block w-full cursor-pointer text-left"
+                    onClick={() => setSelectedPhoto(photo)}
+                  >
+                    <div className="relative aspect-square">
+                      <img
+                        src={photo.publicUrl}
+                        alt="Gallery"
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    </div>
+                  </button>
+                  <div className="flex items-center justify-between gap-3 p-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-gray-900">{photo.displayName}</p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(photo.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                      </p>
+                    </div>
+                    {canDelete && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePhoto(photo)}
+                        disabled={isDeleting}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        title="Delete photo"
+                        aria-label="Delete photo"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="p-3">
-                  <p className="font-medium text-gray-900 text-sm truncate">{photo.displayName}</p>
-                  <p className="text-xs text-gray-500">
-                    {new Date(photo.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                  </p>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </main>
 
-      {/* Lightbox Modal */}
       {selectedPhoto && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90 p-4"
           onClick={() => setSelectedPhoto(null)}
         >
           <button
-            className="absolute top-4 right-4 text-white text-3xl font-bold"
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full text-white transition hover:bg-white/10"
             onClick={() => setSelectedPhoto(null)}
+            aria-label="Close photo"
           >
-            ✕
+            <X className="h-6 w-6" />
           </button>
           <div
-            className="max-w-4xl max-h-screen"
+            className="max-h-screen max-w-4xl"
             onClick={(e) => e.stopPropagation()}
           >
             <img
               src={selectedPhoto.publicUrl}
               alt="Enlarged"
-              className="max-w-full max-h-screen object-contain rounded-lg"
+              className="max-h-screen max-w-full rounded-lg object-contain"
             />
-            <div className="text-white text-center mt-4">
-              <p className="font-semibold text-lg">{selectedPhoto.displayName}</p>
-              <p className="text-sm opacity-75">
-                {new Date(selectedPhoto.created_at).toLocaleString()}
-              </p>
+            <div className="mt-4 flex items-center justify-center gap-4 text-white">
+              <div className="text-center">
+                <p className="text-lg font-semibold">{selectedPhoto.displayName}</p>
+                <p className="text-sm opacity-75">
+                  {new Date(selectedPhoto.created_at).toLocaleString()}
+                </p>
+              </div>
+              {selectedPhoto.user_id === userId && (
+                <button
+                  type="button"
+                  onClick={() => handleDeletePhoto(selectedPhoto)}
+                  disabled={deletingPhotoId === selectedPhoto.id}
+                  className="flex h-10 w-10 items-center justify-center rounded-full text-white transition hover:bg-red-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+                  title="Delete photo"
+                  aria-label="Delete photo"
+                >
+                  <Trash2 className="h-5 w-5" />
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      <footer className="bg-gray-900 text-white py-8 mt-12">
+      <footer className="mt-12 bg-gray-900 py-8 text-white">
         <div className="container mx-auto px-4 text-center">
           <p className="text-sm text-gray-400">
-            © 2026 Friends Hub • Photos stored in Supabase Cloud • {photos.length} photos
+            2026 Friends Hub - Photos stored in Supabase Cloud - {photos.length} photos
           </p>
         </div>
       </footer>
