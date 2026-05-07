@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import Navbar from '@/components/Navbar'
+import { Cake, CalendarDays, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { EmptyState, PageHeader, PageShell, SectionCard } from '@/components/ui/page-shell'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 import { requireCurrentUser } from '@/lib/auth'
@@ -190,36 +191,44 @@ export default function CalendarPage() {
   }
 
   if (!isLoaded) {
-    return <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white"><Navbar /><main className="container mx-auto px-4 py-8"><div className="text-center py-20">Loading calendar...</div></main></div>
+    return <PageShell><div className="py-20 text-center text-muted-foreground">Loading calendar...</div></PageShell>
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <Navbar />
-      <main className="container mx-auto px-4 py-8">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-800 mb-4">📅 Calendar</h1>
-          <p className="text-lg text-gray-600">Track birthdays and plan events!</p>
-          <Link href="/events" className="mt-4 inline-block">
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
-              Plan New Event →
+    <PageShell>
+        <PageHeader
+          icon={CalendarDays}
+          title="Calendar"
+          description="Track birthdays, scan upcoming events, and start planning from a date."
+          actions={
+          <Link href="/events">
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
+              Plan New Event
             </Button>
           </Link>
-        </div>
+          }
+        />
 
         {/* Calendar Controls */}
-        <div className="flex justify-between items-center mb-6 max-w-4xl mx-auto">
-          <button onClick={prevMonth} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">← Previous</button>
-          <h2 className="text-2xl font-bold text-gray-800">{getMonthName(currentDate)}</h2>
-          <button onClick={nextMonth} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">Next →</button>
+        <div className="mx-auto mb-6 flex max-w-4xl items-center justify-between gap-3">
+          <button onClick={prevMonth} className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground hover:border-primary/40">
+            <ChevronLeft className="h-4 w-4" />
+            Previous
+          </button>
+          <h2 className="text-center text-xl font-bold text-foreground sm:text-2xl">{getMonthName(currentDate)}</h2>
+          <button onClick={nextMonth} className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground hover:border-primary/40">
+            Next
+            <ChevronRight className="h-4 w-4" />
+          </button>
         </div>
 
         {/* Calendar Grid */}
-        <div className="bg-white rounded-xl shadow-md p-6 max-w-6xl mx-auto">
+        <SectionCard className="mx-auto max-w-6xl">
           {/* Day Headers */}
           <div className="grid grid-cols-7 gap-2 mb-4">
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-              <div key={day} className="text-center font-semibold text-gray-700 py-2">{day}</div>
+              <div key={day} className="py-2 text-center text-sm font-semibold text-muted-foreground">{day}</div>
             ))}
           </div>
 
@@ -251,27 +260,27 @@ export default function CalendarPage() {
               return (
                 <div
                   key={day}
-                  className={`aspect-square border rounded-lg p-2 relative hover:shadow-md transition-shadow cursor-pointer
-                    ${isSelectedStart ? 'bg-blue-500 border-blue-500 text-white' :
-                      isSelectedEnd ? 'bg-blue-500 border-blue-500 text-white' :
-                      isSelectedRange ? 'bg-blue-100 border-blue-300' :
-                      isToday ? 'bg-blue-50 border-blue-500' : 'bg-white'}`}
+                  className={`relative aspect-square cursor-pointer rounded-lg border p-2 transition hover:-translate-y-0.5 hover:shadow-lift
+                    ${isSelectedStart ? 'border-primary bg-primary text-primary-foreground' :
+                      isSelectedEnd ? 'border-primary bg-primary text-primary-foreground' :
+                      isSelectedRange ? 'border-primary/30 bg-primary/10' :
+                      isToday ? 'border-primary bg-primary/5' : 'border-border bg-background'}`}
                   onClick={() => handleDayClick(day)}
                 >
-                  <div className={`font-semibold ${isSelectedStart || isSelectedEnd ? 'text-white' : 'text-gray-900'}`}>
+                  <div className={`font-semibold ${isSelectedStart || isSelectedEnd ? 'text-primary-foreground' : 'text-foreground'}`}>
                     {day}
                   </div>
 
                   {/* Multiple Birthdays */}
                   {dayBirthdays.length > 0 && (
-                    <div className={`mt-1 text-xs truncate ${isSelectedStart || isSelectedEnd ? 'text-white' : 'text-red-500'}`}>
+                    <div className={`mt-1 truncate text-xs ${isSelectedStart || isSelectedEnd ? 'text-primary-foreground' : 'text-red-600'}`}>
                       {dayBirthdays.length > 1 ? `${dayBirthdays.length} birthdays` : dayBirthdays[0].display_name}
                     </div>
                   )}
 
                   {/* Multiple Events */}
                   {dayEvents.length > 0 && (
-                    <div className={`mt-1 text-xs truncate ${isSelectedStart || isSelectedEnd ? 'text-white' : 'text-blue-500'}`}>
+                    <div className={`mt-1 truncate text-xs ${isSelectedStart || isSelectedEnd ? 'text-primary-foreground' : 'text-primary'}`}>
                       {dayEvents.length > 1 ? `${dayEvents.length} events` : dayEvents[0].title}
                     </div>
                   )}
@@ -279,7 +288,7 @@ export default function CalendarPage() {
               )
             })}
           </div>
-        </div>
+        </SectionCard>
 
         {/* Create Event Modal */}
         {showCreateModal && (
@@ -294,19 +303,22 @@ export default function CalendarPage() {
 
         {/* Month Stats */}
         {monthBirthdays.length > 0 && (
-          <div className="max-w-4xl mx-auto mt-8">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">🎉 Birthdays This Month</h3>
+          <div className="mx-auto mt-8 max-w-4xl">
+            <h3 className="mb-4 flex items-center gap-2 text-xl font-semibold text-foreground">
+              <Cake className="h-5 w-5 text-primary" />
+              Birthdays This Month
+            </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               {monthBirthdays.map(birthday => {
                 const birthdayDate = new Date(birthday.birthdate)
                 return (
-                  <div key={birthday.id} className="bg-white rounded-lg shadow-md p-4">
+                  <div key={birthday.id} className="app-surface rounded-lg p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-semibold text-gray-900">{birthday.display_name}</p>
-                        <p className="text-sm text-gray-600">{birthdayDate.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}</p>
+                        <p className="font-semibold text-foreground">{birthday.display_name}</p>
+                        <p className="text-sm text-muted-foreground">{birthdayDate.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}</p>
                       </div>
-                      <div className="text-3xl">🎂</div>
+                      <Cake className="h-7 w-7 text-accent" />
                     </div>
                     {birthday.nickname && <p className="text-xs text-gray-500 mt-1">Nickname: {birthday.nickname}</p>}
                   </div>
@@ -317,18 +329,21 @@ export default function CalendarPage() {
         )}
 
         {eventsThisMonth.length > 0 && (
-          <div className="max-w-4xl mx-auto mt-8">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">📅 This Month&apos;s Events</h3>
+          <div className="mx-auto mt-8 max-w-4xl">
+            <h3 className="mb-4 flex items-center gap-2 text-xl font-semibold text-foreground">
+              <CalendarDays className="h-5 w-5 text-primary" />
+              This Month&apos;s Events
+            </h3>
             <div className="grid grid-cols-1 gap-4">
               {eventsThisMonth.map(event => {
                 const eventDate = new Date(event.event_date)
                 return (
-                  <div key={event.id} className="bg-white border-l-4 border-blue-500 rounded-lg shadow-md p-4">
+                  <div key={event.id} className="app-surface rounded-lg border-l-4 border-primary p-4">
                     <div className="flex justify-between items-start">
                       <div>
-                        <p className="font-semibold text-gray-900">{event.title}</p>
-                        <p className="text-sm text-gray-600 mt-1">{eventDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
-                        {event.description && <p className="text-sm text-gray-700 mt-2">{event.description}</p>}
+                        <p className="font-semibold text-foreground">{event.title}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">{eventDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                        {event.description && <p className="mt-2 text-sm text-foreground/80">{event.description}</p>}
                       </div>
                     </div>
                   </div>
@@ -337,8 +352,10 @@ export default function CalendarPage() {
             </div>
           </div>
         )}
-      </main>
-    </div>
+        {monthBirthdays.length === 0 && eventsThisMonth.length === 0 && (
+          <EmptyState icon={CalendarDays} title="Nothing planned this month" description="Birthdays and visible events will show up here." className="mx-auto mt-8 max-w-4xl" />
+        )}
+    </PageShell>
   )
 }
 
@@ -384,11 +401,11 @@ function CreateEventModal({ onClose, onCreate, defaultStartDate, defaultEndDate,
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={onClose}>
+      <div className="app-surface w-full max-w-2xl rounded-lg p-6" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Create New Event</h2>
-          <button onClick={onClose} className="text-2xl">×</button>
+          <h2 className="text-2xl font-bold text-foreground">Create New Event</h2>
+          <button onClick={onClose} className="text-2xl text-muted-foreground hover:text-foreground">x</button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -399,7 +416,7 @@ function CreateEventModal({ onClose, onCreate, defaultStartDate, defaultEndDate,
               name="title"
               value={formData.title}
               onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 focus:ring-2 focus:ring-primary/20"
               required
             />
           </div>
@@ -410,7 +427,7 @@ function CreateEventModal({ onClose, onCreate, defaultStartDate, defaultEndDate,
               name="description"
               value={formData.description}
               onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 focus:ring-2 focus:ring-primary/20"
               rows="3"
             />
           </div>
@@ -422,7 +439,7 @@ function CreateEventModal({ onClose, onCreate, defaultStartDate, defaultEndDate,
               name="startDate"
               value={formData.startDate}
               onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 focus:ring-2 focus:ring-primary/20"
               required
             />
           </div>
@@ -445,7 +462,7 @@ function CreateEventModal({ onClose, onCreate, defaultStartDate, defaultEndDate,
                 name="endDate"
                 value={formData.endDate}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 focus:ring-2 focus:ring-primary/20"
                 min={formData.startDate}
                 required
               />
@@ -459,15 +476,15 @@ function CreateEventModal({ onClose, onCreate, defaultStartDate, defaultEndDate,
               name="location"
               value={formData.location}
               onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 focus:ring-2 focus:ring-primary/20"
             />
           </div>
 
           <div className="flex gap-3 mt-6">
-            <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg">
+            <button type="submit" className="flex-1 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground hover:bg-primary/90">
               Create Event
             </button>
-            <button type="button" onClick={onClose} className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg">
+            <button type="button" onClick={onClose} className="flex-1 rounded-lg bg-muted px-4 py-2 font-semibold text-foreground hover:bg-muted/80">
               Cancel
             </button>
           </div>

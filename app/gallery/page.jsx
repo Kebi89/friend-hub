@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Camera, Image as ImageIcon, Trash2, X } from 'lucide-react'
-import Navbar from '@/components/Navbar'
+import { EmptyState, PageHeader, PageShell } from '@/components/ui/page-shell'
 import { supabase } from '@/lib/supabase'
 import { requireCurrentUser } from '@/lib/auth'
 
@@ -165,35 +165,25 @@ export default function GalleryPage() {
 
   if (!isLoaded) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-        <Navbar />
-        <main className="container mx-auto px-4 py-8">
-          <div className="text-center py-20">Loading gallery...</div>
-        </main>
-      </div>
+      <PageShell>
+        <div className="py-20 text-center text-muted-foreground">Loading gallery...</div>
+      </PageShell>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <Navbar />
-
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-12 text-center">
-          <h1 className="mb-4 flex items-center justify-center gap-3 text-4xl font-bold text-gray-800">
-            <Camera className="h-9 w-9 text-blue-600" />
-            Photo Gallery
-          </h1>
-          <p className="text-lg text-gray-600">Share and view photos from our adventures!</p>
-        </div>
-
-        <div className="mx-auto mb-8 max-w-4xl">
+    <PageShell>
+        <PageHeader
+          icon={Camera}
+          title="Photo Gallery"
+          description="Share photos from adventures and keep the best moments in one clean gallery."
+          actions={
           <label className="block">
             <button
               type="button"
               onClick={() => document.getElementById('photo-upload').click()}
               disabled={uploading || !userId}
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-8 py-4 font-semibold text-white shadow-md transition-colors hover:bg-blue-700 disabled:opacity-50"
+              className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-50"
             >
               <Camera className="h-5 w-5" />
               {uploading ? 'Uploading...' : 'Upload Photo'}
@@ -207,16 +197,11 @@ export default function GalleryPage() {
               disabled={uploading || !userId}
             />
           </label>
-        </div>
+          }
+        />
 
         {photos.length === 0 ? (
-          <div className="mx-auto max-w-4xl py-12 text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-sm">
-              <ImageIcon className="h-8 w-8 text-slate-500" />
-            </div>
-            <p className="text-lg text-gray-500">No photos yet!</p>
-            <p className="text-gray-400">Upload the first photo from this device.</p>
-          </div>
+          <EmptyState icon={ImageIcon} title="No photos yet" description="Upload the first photo from this device." className="mx-auto max-w-4xl" />
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {photos.map((photo) => {
@@ -226,7 +211,7 @@ export default function GalleryPage() {
               return (
                 <div
                   key={photo.id}
-                  className="overflow-hidden rounded-xl bg-white shadow-md transition-shadow hover:shadow-xl"
+                  className="interactive-lift app-surface overflow-hidden rounded-lg"
                 >
                   <button
                     type="button"
@@ -244,8 +229,8 @@ export default function GalleryPage() {
                   </button>
                   <div className="flex items-center justify-between gap-3 p-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-gray-900">{photo.displayName}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="truncate text-sm font-medium text-foreground">{photo.displayName}</p>
+                      <p className="text-xs text-muted-foreground">
                         {new Date(photo.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                       </p>
                     </div>
@@ -267,8 +252,6 @@ export default function GalleryPage() {
             })}
           </div>
         )}
-      </main>
-
       {selectedPhoto && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90 p-4"
@@ -314,13 +297,11 @@ export default function GalleryPage() {
         </div>
       )}
 
-      <footer className="mt-12 bg-gray-900 py-8 text-white">
-        <div className="container mx-auto px-4 text-center">
-          <p className="text-sm text-gray-400">
+      <footer className="mx-auto mt-12 max-w-4xl border-t border-border py-6 text-center">
+          <p className="text-sm text-muted-foreground">
             2026 Friends Hub - Photos stored in Supabase Cloud - {photos.length} photos
           </p>
-        </div>
       </footer>
-    </div>
+    </PageShell>
   )
 }

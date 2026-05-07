@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, CalendarDays, MessageCircle, Plus, Send, Trash2 } from 'lucide-react'
-import Navbar from '@/components/Navbar'
+import { PageShell } from '@/components/ui/page-shell'
 import { supabase } from '@/lib/supabase'
 import {
   HUB_CHAT_ID,
@@ -197,42 +197,36 @@ export default function MessagesPage() {
 
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-slate-100">
-        <Navbar />
-        <main className="container mx-auto px-4 py-8">
-          <div className="text-center py-20">
-            <div className="animate-pulse text-lg text-slate-500">Loading chat...</div>
-          </div>
-        </main>
-      </div>
+      <PageShell>
+        <div className="py-20 text-center">
+          <div className="animate-pulse text-lg text-muted-foreground">Loading chat...</div>
+        </div>
+      </PageShell>
     )
   }
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <Navbar />
-
-      <main className="mx-auto flex h-[calc(100vh-4rem)] max-w-6xl flex-col px-3 py-4 sm:px-6">
-        <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
+    <PageShell className="flex h-[calc(100vh-4rem)] max-w-6xl flex-col px-3 py-4 sm:px-6">
+        <section className="app-surface flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg">
+          <div className="border-b border-border bg-card px-4 py-4 sm:px-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h1 className="text-xl font-semibold text-slate-950 sm:text-2xl">Friends Chat</h1>
-                <p className="mt-1 text-sm text-slate-500">
+                <h1 className="text-xl font-semibold text-foreground sm:text-2xl">Friends Chat</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
                   {selectedChat?.title || 'Hub'} chat - Signed in as {username || 'Friend'}
                 </p>
               </div>
-              <div className="hidden h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white sm:flex">
+              <div className="hidden h-10 w-10 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground sm:flex">
                 {getInitials(username)}
               </div>
             </div>
 
-            <div className="mt-4 flex rounded-lg border border-slate-200 bg-slate-50 p-1">
+            <div className="mt-4 flex rounded-lg border border-border bg-muted p-1">
               <button
                 type="button"
                 onClick={() => handleTabChange('hub')}
                 className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition ${
-                  activeTab === 'hub' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                  activeTab === 'hub' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <MessageCircle className="h-4 w-4" />
@@ -242,7 +236,7 @@ export default function MessagesPage() {
                 type="button"
                 onClick={() => handleTabChange('events')}
                 className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition ${
-                  activeTab === 'events' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                  activeTab === 'events' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <CalendarDays className="h-4 w-4" />
@@ -260,7 +254,7 @@ export default function MessagesPage() {
                       setMessages([])
                       setNewMessage('')
                     }}
-                    className="flex shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-300"
+                    className="flex shrink-0 items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:border-primary/40"
                   >
                     <ArrowLeft className="h-4 w-4" />
                     Groups
@@ -273,12 +267,12 @@ export default function MessagesPage() {
                     onClick={() => handleChatSelect(chat.id)}
                     className={`shrink-0 rounded-lg border px-3 py-2 text-left text-sm transition ${
                       selectedChatId === chat.id
-                        ? 'border-blue-500 bg-blue-50 text-blue-900'
-                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border bg-card text-foreground hover:border-primary/40'
                     }`}
                   >
                     <span className="block max-w-48 truncate font-medium">{chat.title}</span>
-                    <span className="block text-xs text-slate-500">
+                    <span className="block text-xs text-muted-foreground">
                       {chat.type === 'event' ? formatEventDate(chat) : 'Pinned main chat'}
                     </span>
                   </button>
@@ -287,7 +281,7 @@ export default function MessagesPage() {
             )}
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 px-3 py-5 sm:px-6">
+          <div className="min-h-0 flex-1 overflow-y-auto bg-muted/50 px-3 py-5 sm:px-6">
             {isGroupDirectory && eventChats.length > 0 ? (
               <div className="mx-auto grid max-w-3xl gap-3 sm:grid-cols-2">
                 {eventChats.map((chat) => (
@@ -295,10 +289,10 @@ export default function MessagesPage() {
                     key={chat.id}
                     type="button"
                     onClick={() => handleChatSelect(chat.id)}
-                    className="rounded-lg border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
+                    className="interactive-lift rounded-lg border border-border bg-card p-4 text-left transition hover:border-primary/40"
                   >
-                    <span className="block font-semibold text-slate-900">{chat.title}</span>
-                    <span className="mt-1 block text-sm text-slate-500">{formatEventDate(chat)}</span>
+                    <span className="block font-semibold text-foreground">{chat.title}</span>
+                    <span className="mt-1 block text-sm text-muted-foreground">{formatEventDate(chat)}</span>
                   </button>
                 ))}
               </div>
@@ -306,20 +300,20 @@ export default function MessagesPage() {
               <div className="flex h-full items-center justify-center text-center">
                 <div>
                   <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-sm">
-                    <CalendarDays className="h-7 w-7 text-slate-500" />
+                    <CalendarDays className="h-7 w-7 text-muted-foreground" />
                   </div>
-                  <p className="text-lg font-semibold text-slate-900">No active event chats</p>
-                  <p className="mt-1 text-sm text-slate-500">Create one from an event and invite only the people who need it.</p>
+                  <p className="text-lg font-semibold text-foreground">No active event chats</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Create one from an event and invite only the people who need it.</p>
                 </div>
               </div>
             ) : messages.length === 0 ? (
               <div className="flex h-full items-center justify-center text-center">
                 <div>
                   <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-sm">
-                    <MessageCircle className="h-7 w-7 text-slate-500" />
+                    <MessageCircle className="h-7 w-7 text-muted-foreground" />
                   </div>
-                  <p className="text-lg font-semibold text-slate-900">No messages yet</p>
-                  <p className="mt-1 text-sm text-slate-500">Start the conversation with your friends.</p>
+                  <p className="text-lg font-semibold text-foreground">No messages yet</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Start the conversation with your friends.</p>
                 </div>
               </div>
             ) : (
@@ -347,8 +341,8 @@ export default function MessagesPage() {
                         <div
                           className={`rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
                             isMine
-                              ? 'rounded-br-md bg-blue-600 text-white'
-                              : 'rounded-bl-md border border-slate-200 bg-white text-slate-800'
+                            ? 'rounded-br-md bg-primary text-primary-foreground'
+                              : 'rounded-bl-md border border-border bg-card text-foreground'
                           }`}
                         >
                           <p className="whitespace-pre-wrap break-words">{msg.text}</p>
@@ -378,18 +372,18 @@ export default function MessagesPage() {
           </div>
 
           {isGroupDirectory ? (
-            <div className="border-t border-slate-200 bg-white p-3 sm:p-4">
+            <div className="border-t border-border bg-card p-3 sm:p-4">
               <button
                 type="button"
                 onClick={() => router.push('/events?create=1')}
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-700"
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
               >
                 <Plus className="h-5 w-5" />
                 Create Group
               </button>
             </div>
           ) : (
-          <form onSubmit={handleSubmit} className="border-t border-slate-200 bg-white p-3 sm:p-4">
+          <form onSubmit={handleSubmit} className="border-t border-border bg-card p-3 sm:p-4">
             <div className="flex items-end gap-2">
               <div className="min-w-0 flex-1">
                 <label htmlFor="message" className="sr-only">Message</label>
@@ -405,7 +399,7 @@ export default function MessagesPage() {
                   }}
                   placeholder={selectedChat ? `Message ${selectedChat.title}...` : 'Message your friends...'}
                   rows="1"
-                  className="max-h-32 min-h-11 w-full resize-none rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  className="max-h-32 min-h-11 w-full resize-none rounded-lg border border-input bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15"
                   required
                   disabled={!userId || !selectedChatId}
                 />
@@ -413,7 +407,7 @@ export default function MessagesPage() {
               <button
                 type="submit"
                 disabled={!userId || !selectedChatId || !newMessage.trim()}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="Send message"
               >
                 <Send className="h-5 w-5" />
@@ -422,7 +416,6 @@ export default function MessagesPage() {
           </form>
           )}
         </section>
-      </main>
-    </div>
+    </PageShell>
   )
 }

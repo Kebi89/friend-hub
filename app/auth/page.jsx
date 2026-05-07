@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import Navbar from '@/components/Navbar'
+import { ArrowLeft, LockKeyhole } from 'lucide-react'
+import { PageShell, SectionCard } from '@/components/ui/page-shell'
 import { signIn, signUp } from '@/lib/auth'
 
 export default function AuthPage() {
@@ -65,17 +66,17 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <Navbar />
-      
-      <main className="container mx-auto px-4 py-12">
+    <PageShell className="py-12">
         <div className="max-w-md mx-auto">
           {/* Auth Card */}
-          <div className="bg-white rounded-lg shadow-md p-8">
-            <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">
+          <SectionCard className="p-8">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
+              <LockKeyhole className="h-6 w-6" />
+            </div>
+            <h1 className="text-center text-3xl font-bold text-foreground mb-2">
               {isLogin ? 'Welcome Back!' : 'Create Your Account'}
             </h1>
-            <p className="text-center text-gray-600 mb-6">
+            <p className="text-center text-muted-foreground mb-6">
               {isLogin 
                 ? 'Sign in to access your Friends Hub' 
                 : 'Join Friends Hub to get started'}
@@ -83,7 +84,7 @@ export default function AuthPage() {
 
             {/* Error Message */}
             {error && (
-              <div className="bg-red-50 border-l-4 border-red-600 p-4 mb-6 rounded">
+              <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
                 <p className="text-red-700 text-sm">{error}</p>
               </div>
             )}
@@ -102,10 +103,10 @@ export default function AuthPage() {
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder="Enter your name"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full rounded-lg border border-input bg-background px-4 py-2 focus:ring-2 focus:ring-primary/20"
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-1">This will appear on all your messages</p>
+                  <p className="mt-1 text-xs text-muted-foreground">This will appear on all your messages</p>
                 </div>
               )}
 
@@ -120,7 +121,7 @@ export default function AuthPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full rounded-lg border border-input bg-background px-4 py-2 focus:ring-2 focus:ring-primary/20"
                   required
                 />
               </div>
@@ -136,18 +137,18 @@ export default function AuthPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full rounded-lg border border-input bg-background px-4 py-2 focus:ring-2 focus:ring-primary/20"
                   required
                   minLength={6}
                 />
-                <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
+                <p className="mt-1 text-xs text-muted-foreground">Minimum 6 characters</p>
               </div>
 
               {/* Submit Button */}
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full rounded-lg bg-primary py-3 font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading ? 'Processing...' : isLogin ? 'Sign In' : 'Create Account'}
               </button>
@@ -155,14 +156,14 @@ export default function AuthPage() {
 
             {/* Toggle between login/register */}
             <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 {isLogin ? "Don't have an account? " : 'Already have an account? '}
                 <button
                   onClick={() => {
                     setIsLogin(!isLogin)
                     setError('')
                   }}
-                  className="text-blue-600 hover:text-blue-700 font-semibold"
+                  className="font-semibold text-primary hover:text-primary/80"
                 >
                   {isLogin ? 'Sign Up' : 'Sign In'}
                 </button>
@@ -170,25 +171,25 @@ export default function AuthPage() {
             </div>
 
             {/* Info */}
-            <div className="mt-8 bg-blue-50 border-l-4 border-blue-600 p-4 rounded">
-              <h3 className="font-semibold text-blue-900 mb-2 text-sm">Privacy Notice</h3>
-              <ul className="text-xs text-blue-800 space-y-1">
-                <li>• Your account is managed by Supabase Auth</li>
-                <li>• Shared content is stored in the Supabase database</li>
-                <li>• Your session is kept in browser storage</li>
-                <li>• Your password is handled by Supabase, not this app</li>
+            <div className="mt-8 rounded-lg border border-border bg-muted p-4">
+              <h3 className="font-semibold text-foreground mb-2 text-sm">Privacy Notice</h3>
+              <ul className="space-y-1 text-xs text-muted-foreground">
+                <li>Your account is managed by Supabase Auth.</li>
+                <li>Shared content is stored in the Supabase database.</li>
+                <li>Your session is kept in browser storage.</li>
+                <li>Your password is handled by Supabase, not this app.</li>
               </ul>
             </div>
-          </div>
+          </SectionCard>
 
           {/* Back to Home */}
           <div className="text-center mt-6">
-            <Link href="/" className="text-gray-600 hover:text-gray-800 text-sm">
-              ← Back to Home
+            <Link href="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="h-4 w-4" />
+              Back to Home
             </Link>
           </div>
         </div>
-      </main>
-    </div>
+    </PageShell>
   )
 }

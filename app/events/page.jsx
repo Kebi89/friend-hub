@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { CalendarDays, CheckSquare, Clock, MapPin, PartyPopper, Plus, Trash2, Users, Wallet, X } from 'lucide-react'
-import Navbar from '@/components/Navbar'
+import { EmptyState, PageHeader, PageShell, SectionCard } from '@/components/ui/page-shell'
 import { supabase } from '@/lib/supabase'
 import { createEventChat, requireCurrentUser, saveEventAccess } from '@/lib/auth'
 
@@ -389,45 +389,35 @@ export default function EventsPage() {
 
   if (!isLoaded) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-        <Navbar />
-        <main className="container mx-auto px-4 py-8">
-          <div className="text-center py-20">Loading...</div>
-        </main>
-      </div>
+      <PageShell>
+        <div className="py-20 text-center text-muted-foreground">Loading events...</div>
+      </PageShell>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <Navbar />
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-12 text-center">
-          <h1 className="mb-4 flex items-center justify-center gap-3 text-4xl font-bold text-gray-800">
-            <PartyPopper className="h-9 w-9 text-blue-600" />
-            Events
-          </h1>
-          <p className="text-lg text-gray-600">Plan and manage your trips!</p>
-        </div>
-
-        <div className="mb-8 text-center">
+    <PageShell>
+        <PageHeader
+          icon={PartyPopper}
+          title="Events"
+          description="Plan trips, manage private access, create event chats, and keep tasks and costs together."
+          actions={
           <button
             onClick={() => {
               resetForm()
               setShowCreateForm(true)
             }}
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-8 py-3 font-semibold text-white shadow-md hover:bg-blue-700"
+            className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90"
           >
             <Plus className="h-5 w-5" />
             Create Event
           </button>
-        </div>
+          }
+        />
 
         <div className="mx-auto max-w-4xl space-y-4">
           {events.length === 0 ? (
-            <div className="rounded-lg bg-white p-6 text-center shadow-md">
-              <p className="text-gray-500">No events yet</p>
-            </div>
+            <EmptyState icon={CalendarDays} title="No events yet" description="Create the first event to coordinate the group." />
           ) : (
             events.map(event => {
               const startDate = new Date(`${event.event_date}T00:00:00`)
@@ -442,29 +432,29 @@ export default function EventsPage() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') openEventDetails(event)
                   }}
-                  className={`cursor-pointer rounded-lg border-l-4 bg-white p-6 shadow-md transition hover:shadow-lg ${isPast ? 'border-gray-400 opacity-75' : 'border-blue-500'}`}
+                  className={`interactive-lift app-surface cursor-pointer rounded-lg border-l-4 p-6 ${isPast ? 'border-muted-foreground/40 opacity-75' : 'border-primary'}`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h3 className="mb-2 text-xl font-bold text-gray-900">{event.title}</h3>
-                      <p className="flex items-center gap-2 text-sm text-gray-600">
+                      <h3 className="mb-2 text-xl font-bold text-foreground">{event.title}</h3>
+                      <p className="flex items-center gap-2 text-sm text-muted-foreground">
                         <CalendarDays className="h-4 w-4" />
                         {startDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
                       </p>
                       {event.event_time && (
-                        <p className="mt-1 flex items-center gap-2 text-sm text-gray-600">
+                        <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
                           <Clock className="h-4 w-4" />
                           {formatTime(event.event_time)}
                         </p>
                       )}
-                      {event.description && <p className="mt-2 text-sm text-gray-700">{event.description}</p>}
+                      {event.description && <p className="mt-2 text-sm text-foreground/80">{event.description}</p>}
                       {event.location && (
                         <a
                           href={getMapsUrl(event.location)}
                           target="_blank"
                           rel="noreferrer"
                           onClick={(e) => e.stopPropagation()}
-                          className="mt-1 flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
+                          className="mt-1 flex items-center gap-2 text-sm text-primary hover:text-primary/80"
                         >
                           <MapPin className="h-4 w-4" />
                           {event.location}
@@ -474,7 +464,7 @@ export default function EventsPage() {
                     <div className="ml-4 flex flex-col gap-2">
                       {event.creator_id === userId && (
                         <>
-                          <button onClick={(e) => { e.stopPropagation(); startEditing(event) }} className="text-sm font-medium text-yellow-600 hover:text-yellow-700">Edit</button>
+                          <button onClick={(e) => { e.stopPropagation(); startEditing(event) }} className="text-sm font-medium text-amber-700 hover:text-amber-800">Edit</button>
                           <button onClick={(e) => { e.stopPropagation(); handleDeleteEvent(event.id) }} className="text-sm font-medium text-red-600 hover:text-red-700">Delete</button>
                         </>
                       )}
@@ -485,15 +475,15 @@ export default function EventsPage() {
             })
           )}
         </div>
-      </main>
+      
 
       {selectedEvent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={() => setSelectedEvent(null)}>
-          <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-lg bg-white shadow-xl" onClick={e => e.stopPropagation()}>
-            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-200 bg-white p-5">
+          <div className="app-surface max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-lg" onClick={e => e.stopPropagation()}>
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-border bg-card p-5">
               <div>
-                <h2 className="text-2xl font-bold text-slate-950">{selectedEvent.title}</h2>
-                <div className="mt-2 flex flex-wrap gap-3 text-sm text-slate-600">
+                <h2 className="text-2xl font-bold text-foreground">{selectedEvent.title}</h2>
+                <div className="mt-2 flex flex-wrap gap-3 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <CalendarDays className="h-4 w-4" />
                     {new Date(`${selectedEvent.event_date}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
@@ -509,7 +499,7 @@ export default function EventsPage() {
                       href={getMapsUrl(selectedEvent.location)}
                       target="_blank"
                       rel="noreferrer"
-                      className="flex items-center gap-1 text-blue-600 hover:text-blue-700"
+                      className="flex items-center gap-1 text-primary hover:text-primary/80"
                     >
                       <MapPin className="h-4 w-4" />
                       {selectedEvent.location}
@@ -520,7 +510,7 @@ export default function EventsPage() {
               <button
                 type="button"
                 onClick={() => setSelectedEvent(null)}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
                 aria-label="Close event details"
               >
                 <X className="h-5 w-5" />
@@ -528,13 +518,13 @@ export default function EventsPage() {
             </div>
 
             <div className="grid gap-6 p-5 lg:grid-cols-[1fr_1fr]">
-              <section>
+              <SectionCard>
                 <div className="mb-4">
-                  <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
-                    <CheckSquare className="h-5 w-5 text-blue-600" />
+                  <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                    <CheckSquare className="h-5 w-5 text-primary" />
                     Checklist
                   </h3>
-                  {selectedEvent.description && <p className="mt-2 text-sm text-slate-600">{selectedEvent.description}</p>}
+                  {selectedEvent.description && <p className="mt-2 text-sm text-muted-foreground">{selectedEvent.description}</p>}
                 </div>
 
                 <form onSubmit={handleAddTask} className="mb-4 flex gap-2">
@@ -543,12 +533,12 @@ export default function EventsPage() {
                     value={newTask}
                     onChange={(e) => setNewTask(e.target.value)}
                     placeholder="Add a task..."
-                    className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                    className="min-w-0 flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20"
                   />
                   <button
                     type="submit"
                     disabled={!newTask.trim()}
-                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                    className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                   >
                     Add
                   </button>
@@ -556,10 +546,10 @@ export default function EventsPage() {
 
                 <div className="space-y-2">
                   {eventTasks.length === 0 ? (
-                    <p className="rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-500">No tasks yet.</p>
+                    <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">No tasks yet.</p>
                   ) : (
                     eventTasks.map(task => (
-                      <div key={task.id} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <div key={task.id} className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 p-3">
                         <input
                           type="checkbox"
                           checked={!!task.is_done}
@@ -584,15 +574,15 @@ export default function EventsPage() {
                     ))
                   )}
                 </div>
-              </section>
+              </SectionCard>
 
-              <section>
+              <SectionCard>
                 <div className="mb-4">
-                  <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
-                    <Wallet className="h-5 w-5 text-blue-600" />
+                  <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                    <Wallet className="h-5 w-5 text-primary" />
                     Costs & Split Bill
                   </h3>
-                  <p className="mt-2 text-sm text-slate-600">Track what was bought and split the total across permitted members.</p>
+                  <p className="mt-2 text-sm text-muted-foreground">Track what was bought and split the total across permitted members.</p>
                 </div>
 
                 <form onSubmit={handleAddCost} className="mb-4 grid gap-2 sm:grid-cols-[1fr_8rem_auto]">
@@ -601,7 +591,7 @@ export default function EventsPage() {
                     value={newCost.description}
                     onChange={(e) => setNewCost(prev => ({ ...prev, description: e.target.value }))}
                     placeholder="What was bought?"
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                    className="rounded-lg border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20"
                   />
                   <input
                     type="number"
@@ -610,35 +600,35 @@ export default function EventsPage() {
                     value={newCost.amount}
                     onChange={(e) => setNewCost(prev => ({ ...prev, amount: e.target.value }))}
                     placeholder="Price"
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                    className="rounded-lg border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20"
                   />
                   <button
                     type="submit"
                     disabled={!newCost.description.trim() || !newCost.amount}
-                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                    className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                   >
                     Add
                   </button>
                 </form>
 
                 <div className="mb-4 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-lg bg-slate-100 p-4">
+                  <div className="rounded-lg bg-muted p-4">
                     <p className="text-xs font-medium uppercase text-slate-500">Total</p>
                     <p className="mt-1 text-2xl font-bold text-slate-950">{formatCurrency(totalCosts)}</p>
                   </div>
-                  <div className="rounded-lg bg-blue-50 p-4">
-                    <p className="text-xs font-medium uppercase text-blue-700">Equal split</p>
-                    <p className="mt-1 text-2xl font-bold text-blue-950">{formatCurrency(splitPerPerson)}</p>
-                    <p className="text-xs text-blue-700">{splitCount} member{splitCount !== 1 ? 's' : ''}</p>
+                  <div className="rounded-lg bg-secondary p-4">
+                    <p className="text-xs font-medium uppercase text-secondary-foreground">Equal split</p>
+                    <p className="mt-1 text-2xl font-bold text-secondary-foreground">{formatCurrency(splitPerPerson)}</p>
+                    <p className="text-xs text-secondary-foreground/80">{splitCount} member{splitCount !== 1 ? 's' : ''}</p>
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   {eventCosts.length === 0 ? (
-                    <p className="rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-500">No costs yet.</p>
+                    <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">No costs yet.</p>
                   ) : (
                     eventCosts.map(cost => (
-                      <div key={cost.id} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <div key={cost.id} className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 p-3">
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-slate-900">{cost.description}</p>
                           <p className="text-xs text-slate-500">Added by {getDisplayName(cost.profiles)}</p>
@@ -658,7 +648,7 @@ export default function EventsPage() {
                     ))
                   )}
                 </div>
-              </section>
+              </SectionCard>
             </div>
           </div>
         </div>
@@ -666,10 +656,10 @@ export default function EventsPage() {
 
       {showCreateForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={closeForm}>
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+          <div className="app-surface max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg p-6" onClick={e => e.stopPropagation()}>
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-gray-900">{editingEvent ? 'Edit Event' : 'Create Event'}</h2>
-              <button onClick={closeForm} className="text-2xl">x</button>
+              <h2 className="text-2xl font-bold text-foreground">{editingEvent ? 'Edit Event' : 'Create Event'}</h2>
+              <button onClick={closeForm} className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Close form"><X className="h-5 w-5" /></button>
             </div>
             <div className="space-y-4">
               <div>
@@ -762,13 +752,13 @@ export default function EventsPage() {
                 </>
               )}
               <div className="mt-6 flex gap-3">
-                <button onClick={handleSaveEvent} className="flex-1 rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700">Save</button>
+                <button onClick={handleSaveEvent} className="flex-1 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground hover:bg-primary/90">Save</button>
                 <button onClick={closeForm} className="flex-1 rounded-lg bg-gray-600 px-4 py-2 font-semibold text-white hover:bg-gray-700">Cancel</button>
               </div>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   )
 }

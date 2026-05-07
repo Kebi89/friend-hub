@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import Navbar from '@/components/Navbar'
+import { ArrowLeft, LogOut, User } from 'lucide-react'
+import { PageHeader, PageShell, SectionCard } from '@/components/ui/page-shell'
 import { updateUserProfile, signOut as supabaseSignOut, getUserProfile, requireCurrentUser } from '@/lib/auth'
 
 export default function ProfilePage() {
@@ -89,43 +90,35 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-        <Navbar />
-        <main className="container mx-auto px-4 py-8">
-          <div className="text-center py-20">
-            <div className="animate-pulse text-lg text-gray-500">Loading profile...</div>
-          </div>
-        </main>
-      </div>
+      <PageShell>
+        <div className="py-20 text-center">
+          <div className="animate-pulse text-lg text-muted-foreground">Loading profile...</div>
+        </div>
+      </PageShell>
     )
   }
 
   if (!user) return null
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <Navbar />
-      <main className="container mx-auto px-4 py-8">
+    <PageShell>
         <div className="max-w-2xl mx-auto">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">👤 Your Profile</h1>
-            <p className="text-gray-600">Manage your personal information</p>
-          </div>
+          <PageHeader icon={User} title="Your Profile" description="Manage the personal details used across Friends Hub." />
 
           {error && (
-            <div className="bg-red-50 border-l-4 border-red-600 p-4 mb-6 rounded">
+            <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
               <p className="text-red-700 text-sm">{error}</p>
             </div>
           )}
 
           {success && (
-            <div className="bg-green-50 border-l-4 border-green-600 p-4 mb-6 rounded">
+            <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
               <p className="text-green-700 text-sm">{success}</p>
             </div>
           )}
 
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">Edit Profile</h2>
+          <SectionCard className="mb-6">
+            <h2 className="mb-4 text-xl font-semibold text-foreground">Edit Profile</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 mb-2">Display Name *</label>
@@ -135,7 +128,7 @@ export default function ProfilePage() {
                   value={formData.displayName} 
                   onChange={(e) => setFormData({...formData, displayName: e.target.value})} 
                   placeholder="Your name (appears on messages)" 
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                  className="w-full rounded-lg border border-input bg-background px-4 py-2 focus:ring-2 focus:ring-primary/20" 
                   required 
                 />
               </div>
@@ -148,7 +141,7 @@ export default function ProfilePage() {
                   value={formData.nickname} 
                   onChange={(e) => setFormData({...formData, nickname: e.target.value})} 
                   placeholder="A fun nickname (optional)" 
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                  className="w-full rounded-lg border border-input bg-background px-4 py-2 focus:ring-2 focus:ring-primary/20" 
                 />
               </div>
 
@@ -159,7 +152,7 @@ export default function ProfilePage() {
                   id="birthdate" 
                   value={formData.birthdate} 
                   onChange={(e) => setFormData({...formData, birthdate: e.target.value})} 
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                  className="w-full rounded-lg border border-input bg-background px-4 py-2 focus:ring-2 focus:ring-primary/20" 
                 />
               </div>
 
@@ -171,7 +164,7 @@ export default function ProfilePage() {
                   value={formData.bankAccount} 
                   onChange={(e) => setFormData({...formData, bankAccount: e.target.value})} 
                   placeholder="For split billing (optional)" 
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                  className="w-full rounded-lg border border-input bg-background px-4 py-2 focus:ring-2 focus:ring-primary/20" 
                 />
               </div>
 
@@ -179,24 +172,25 @@ export default function ProfilePage() {
                 <button 
                   type="submit" 
                   disabled={saving} 
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors duration-200 disabled:opacity-50"
+                  className="flex-1 rounded-lg bg-primary py-3 font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
                 >
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
                 <button 
                   type="button" 
                   onClick={handleLogout} 
-                  className="bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-6 py-3 font-semibold text-white transition hover:bg-red-700"
                 >
+                  <LogOut className="h-4 w-4" />
                   Log Out
                 </button>
               </div>
             </form>
-          </div>
+          </SectionCard>
 
-          <div className="bg-blue-50 rounded-lg p-4">
-            <h3 className="font-semibold text-blue-900 mb-3">Current Information</h3>
-            <div className="space-y-2 text-sm text-blue-800">
+          <SectionCard className="bg-secondary">
+            <h3 className="font-semibold text-secondary-foreground mb-3">Current Information</h3>
+            <div className="space-y-2 text-sm text-secondary-foreground">
               <div className="flex justify-between">
                 <span>Display Name:</span>
                 <span className="font-semibold">{user.display_name}</span>
@@ -218,13 +212,15 @@ export default function ProfilePage() {
                 <span className="font-semibold">{user.email}</span>
               </div>
             </div>
-          </div>
+          </SectionCard>
 
           <div className="text-center mt-6">
-            <Link href="/" className="text-gray-600 hover:text-gray-800 text-sm">← Back to Home</Link>
+            <Link href="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="h-4 w-4" />
+              Back to Home
+            </Link>
           </div>
         </div>
-      </main>
-    </div>
+    </PageShell>
   )
 }
