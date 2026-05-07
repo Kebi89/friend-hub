@@ -352,7 +352,7 @@ export async function createEventChat(eventId: string, title: string, createdBy:
     console.error('Create event chat error:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Create event chat failed',
+      error: getSupabaseErrorMessage(error, 'Create event chat failed'),
     }
   }
 }
@@ -373,10 +373,13 @@ export async function saveEventAccess(eventId: string, creatorId: string, member
       .upsert(participantRows, { onConflict: 'event_id,user_id', ignoreDuplicates: true })
 
     if (error) throw error
-    return true
+    return { success: true }
   } catch (error) {
     console.error('Save event access error:', error)
-    return false
+    return {
+      success: false,
+      error: getSupabaseErrorMessage(error, 'Save event access failed'),
+    }
   }
 }
 
@@ -427,4 +430,8 @@ function formatMessages(data: any[]) {
     text: msg.content,
     timestamp: msg.created_at,
   }))
+}
+
+function getSupabaseErrorMessage(error: any, fallback: string) {
+  return error?.message || error?.details || error?.hint || fallback
 }

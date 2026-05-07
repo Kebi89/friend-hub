@@ -228,6 +228,38 @@ $$;
 REVOKE ALL ON FUNCTION private.can_access_chat(UUID, UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION private.can_access_chat(UUID, UUID) TO authenticated;
 
+CREATE OR REPLACE FUNCTION private.is_event_creator(check_event_id UUID, check_user_id UUID)
+RETURNS BOOLEAN
+LANGUAGE SQL
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.events
+    WHERE events.id = check_event_id
+      AND events.creator_id = check_user_id
+  );
+$$;
+REVOKE ALL ON FUNCTION private.is_event_creator(UUID, UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION private.is_event_creator(UUID, UUID) TO authenticated;
+
+CREATE OR REPLACE FUNCTION private.is_chat_creator(check_chat_id UUID, check_user_id UUID)
+RETURNS BOOLEAN
+LANGUAGE SQL
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.chats
+    WHERE chats.id = check_chat_id
+      AND chats.created_by = check_user_id
+  );
+$$;
+REVOKE ALL ON FUNCTION private.is_chat_creator(UUID, UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION private.is_chat_creator(UUID, UUID) TO authenticated;
+
 -- ============================================
 -- POLICIES
 -- ============================================
@@ -310,24 +342,12 @@ CREATE POLICY "Users can view their chat memberships" ON chat_members
   FOR SELECT TO authenticated USING (private.can_access_chat(chat_id, auth.uid()));
 
 CREATE POLICY "Chat owners can add members" ON chat_members
-  FOR INSERT TO authenticated WITH CHECK (
-    EXISTS (
-      SELECT 1
-      FROM chats
-      WHERE chats.id = chat_members.chat_id
-        AND chats.created_by = auth.uid()
-    )
-  );
+  FOR INSERT TO authenticated WITH CHECK (private.is_chat_creator(chat_id, auth.uid()));
 
 CREATE POLICY "Chat owners can remove members" ON chat_members
   FOR DELETE TO authenticated USING (
     user_id = auth.uid()
-    OR EXISTS (
-      SELECT 1
-      FROM chats
-      WHERE chats.id = chat_members.chat_id
-        AND chats.created_by = auth.uid()
-    )
+    OR private.is_chat_creator(chat_id, auth.uid())
   );
 
 -- Messages policies
@@ -386,25 +406,11 @@ CREATE POLICY "Users can join events as self" ON event_participants
     )
   );
 CREATE POLICY "Event creators can add participants" ON event_participants
-  FOR INSERT TO authenticated WITH CHECK (
-    EXISTS (
-      SELECT 1
-      FROM events
-      WHERE events.id = event_participants.event_id
-        AND events.creator_id = auth.uid()
-    )
-  );
+  FOR INSERT TO authenticated WITH CHECK (private.is_event_creator(event_id, auth.uid()));
 CREATE POLICY "Users can leave events as self" ON event_participants
   FOR DELETE TO authenticated USING (auth.uid() = user_id);
 CREATE POLICY "Event creators can remove participants" ON event_participants
-  FOR DELETE TO authenticated USING (
-    EXISTS (
-      SELECT 1
-      FROM events
-      WHERE events.id = event_participants.event_id
-        AND events.creator_id = auth.uid()
-    )
-  );
+  FOR DELETE TO authenticated USING (private.is_event_creator(event_id, auth.uid()));
 
 -- ============================================
 -- STORAGE

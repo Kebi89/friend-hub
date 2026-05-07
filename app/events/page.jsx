@@ -116,14 +116,15 @@ export default function EventsPage() {
       if (error) throw error
 
       if (!editingEvent && savedEvent) {
-        const accessSaved = await saveEventAccess(
+        const accessResult = await saveEventAccess(
           savedEvent.id,
           userId,
           formData.is_public ? [] : formData.access_member_ids
         )
 
-        if (!accessSaved) {
-          alert('Event created, but access permissions could not be saved.')
+        if (!accessResult.success) {
+          alert(`Event created, but access permissions could not be saved: ${accessResult.error}`)
+          return
         }
       }
 
